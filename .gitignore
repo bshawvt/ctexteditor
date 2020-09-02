@@ -1,0 +1,9 @@
+util.sublime-workspace
+obj/Release/resource.res
+obj/Debug/resource.res
+obj/Debug/main.o
+Sandbox.layout
+Sandbox.depend
+Sandbox.cbp
+resource.h.gch
+obj/Release/main.o
