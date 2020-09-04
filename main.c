@@ -21,15 +21,15 @@ int main(int argc, char* args[]) {
 
     CharConcat(a, b);*/
 
-    wchar_t op[] = {0x19990,0x30028,0x20320, 0x22909, 0x12371, 0x12435, 0x12395, 0x12385, 0x12399, 0x12289, 0x19990, 0x30028, 0x00, 0x00};
+    //wchar_t op[] = {0x19990,0x30028,0x20320, 0x22909, 0x12371, 0x12435, 0x12395, 0x12385, 0x12399, 0x12289, 0x19990, 0x30028, 0x00, 0x00};
     //世界你好\nこんにちは、世界 Hello World"};
 
     UIHInit();
-    UIHCreateWindow(10, 10, 250, 200, "Heck");
+    UIHCreateWindow("世界你好Heck", 10, 10, 250, 200);
     //UIHAddLabel(L"世界你好\nこんにちは、世界\nHello World", 10, 10, 150, 50);
-    //UIHAddLabel("世界你好\nこんにちは、世界\nHello World!!!?", 10, 100, 150, 50);
     UIHAddLabel("世界你好\nこんにちは、世界\nHello World!!!?", 10, 100, 150, 50);
-    UIHAddButton(L"Fek", 100, 100, 50, 25);
+    //UIHAddLabel("世界你好\nこんにちは、世界\nHello World!!!?", 100, 100, 150, 50);
+    UIHAddButton("世界你好Fek", 100, 100, 50, 25);
     UIHAddEdit("世界你好\nこんにちは、世界", 5, 5, 225, 80);
     UIHShowWindow(1);
     while(1) {
