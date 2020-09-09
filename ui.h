@@ -27,21 +27,49 @@ typedef struct UIH_CONTROL {
     long uuid;
     HWND hwnd;
     wchar_t *text;
+    void *fnCallback;
 } UIH_CONTROL;
 
+/*typedef struct UIH_CALLBACK {
+    void *data1;
+    void *data2;
+    void *data3;
+    void *data4;
+} UIH_CALLBACK;*/
+
 typedef struct UIH_STATE {
-    long controlCount;
-    HWND hwnd;
-    wchar_t *hwndTitle;//[256];
-    //wchar_t hwndTitle[100];
-    HFONT font[UIH_NUM_FONTS];
-    char propName[100]; //
-    wchar_t windowClassname[256];
-    UIH_CONTROL controls[UIH_NUM_CONTROLS];
+    long nextUUID;
     int numberOfControls;
+    wchar_t *hwndTitle;
+    wchar_t *windowClassname;
+    HWND hwnd;
+    HFONT fonts[UIH_NUM_FONTS];
+    //wchar_t *hwndTitle;
+    //wchar_t *windowClassname;
+    UIH_CONTROL controls[UIH_NUM_CONTROLS];
+
+
 } UIH_STATE;
 
-UIH_STATE UIHState;
+/*typedef struct UIH_STATELIST {
+    UIH_STATE *addr;
+    UIH_STATE *nextAddr;
+    UIH_STATE *prevAddr;
+    int hasNext;
+    int hasPrev;
+} UIH_STATELIST;
+*/
+//UIH_STATELIST UIHStateList;
+
+
+UIH_STATE *UIHMakeState() {
+    UIH_STATE *state = (UIH_STATE*) malloc(sizeof(UIH_STATE));
+    if (state == NULL) {
+        printf("\n\n****fek****\n\n");
+    }
+    *state = (UIH_STATE) {0};
+    return state;
+}
 
 
 //LRESULT CALLBACK windowProcCallback(HWND hwnd, UINT umsg, WPARAM wparam, LPARAM lparam);
@@ -55,62 +83,70 @@ UIH_STATE UIHState;
 //void UIHErr();
 //int UIHMakeControlText(UIH_CONTROL *ccontrol, char *text);
 
-
-void UIHErr() {
-    printf("\n** GetLastError: %i **\n", (int) GetLastError());
-}
+int UIHErrorCallCount = 1;
+#define UIHErr() (printf("\n*****\n - GetLastError#%i = %i\n - in: %s\n - %s @ %i\n*****\n", UIHErrorCallCount++, (int) GetLastError(), __FUNCTION__, __FILE__, __LINE__));
 
 LRESULT CALLBACK windowProcCallback(HWND hwnd, UINT umsg, WPARAM wparam, LPARAM lparam) {
+
     int id = (unsigned short) wparam;
     int event = ((unsigned short)(((unsigned long) wparam >> 16) & 0xFFFF));
     switch (umsg) {
-        case WM_COMMAND:
-            printf("\n** window proc callback:\n id=%i event=%i umsg=%x", id, event, umsg);
+        case WM_COMMAND: {
+            wchar_t propName[32];
+            sprintf(propName, "%i", hwnd);
+            HANDLE handle = GetPropW(hwnd, "feck");
+            UIH_STATE *state = (UIH_STATE *) handle;
+            printf("state->hwnd=%i\n", state->hwnd);
+            //printf("\n** window proc callback:\n id=%i event=%i umsg=%x state.hwnd=%i hwnd=%i\n", id, event, umsg, state->hwnd, hwnd);
+            for(int i = 0; i < state->numberOfControls; i++) {
+                UIH_CONTROL control = state->controls[i];
+                printf("id=%i, control.uuid=%i, state->numberOfControls=%i, control.hwnd=%i\n", id, control.uuid, state->numberOfControls, control.hwnd);
+                if (id == control.uuid) {
+                    //printf("found the thing");
+
+                    void (*UIHFNCallback)(UIH_CALLBACK) = control.fnCallback;
+                    (*UIHFNCallback)();
+                    break;
+                }
+            }
             break;
+        }
         /*case WM_SIZE:
             break;
         case WM_SIZING:
             break;*/
         case WM_CLOSE:
             printf("close");
-            //UIH_STATE UIHState;//.propName;
-            //char *propName = UIHState.propName;
-            RemovePropW(hwnd, UIHState.propName);
-            UIHClean();
+            //RemovePropW(hwnd, UIHState.propName);
+            //UIHClean();
             break;
         default:
             //printf("\n** window proc callback:\n id=%i event=%i umsg=%x", id, event, umsg);
+
+            //return DefWindowProcW(hwnd, umsg, wparam, lparam);
             break;
     }
+    //free(state);
     return DefWindowProcW(hwnd, umsg, wparam, lparam);
 }
 
-HWND UIHCreateWindow(char *title, int x, int y, int width, int height) {
+void UIHCreateWindow(UIH_STATE *state, char *title, int x, int y, int width, int height) {
 
-    //wchar_t *p = malloc(sizeof(wchar_t) + 200);
+    int classnameSize = MultiByteToWideChar(CP_UTF8, 0, title, -1, NULL, 0);
+    int titleSize = MultiByteToWideChar(CP_UTF8, 0, title, -1, NULL, 0);
 
-    //strcpy(UIHState.hwndTitle, "feck");
-    int nsize = MultiByteToWideChar(CP_UTF8, 0, title, -1, NULL, 0);
-    UIHState.hwndTitle = malloc(sizeof(wchar_t) + 2);
-    //unsigned short poop[256];
-    int nnsize = MultiByteToWideChar(CP_UTF8, 0, title, -1, UIHState.hwndTitle, nsize);
+    state->windowClassname = malloc(classnameSize * sizeof(wchar_t));
+    state->hwndTitle = malloc(titleSize * sizeof(wchar_t));
 
+    char tmpClassname[classnameSize];
+    sprintf(tmpClassname, "%p%s", state, title);
+    MultiByteToWideChar(CP_UTF8, 0, tmpClassname, -1, state->windowClassname, classnameSize);
+    MultiByteToWideChar(CP_UTF8, 0, title, -1, state->hwndTitle, titleSize);
 
-    //printf("** nsize = %i, nnsize = %i **", nsize, nnsize);
+    //printf("state->windowClassname = %s\nstate->hwndTitle = %s\n", state->windowClassname, state->hwndTitle);
 
-    itoa(&UIHState.propName, UIHState.windowClassname, 16);
-    strcat(UIHState.windowClassname, title);
-    strcpy(UIHState.propName, UIHState.windowClassname);
-    printf("\n** UIHState.propName: %s **\n** UIHState.windowClassname: %s **\n** UIHState.hwndTitle: %s **\n** title: %s **\n", UIHState.propName, UIHState.windowClassname, (wchar_t*)UIHState.hwndTitle, title);
-
-
-    int nsize1 = MultiByteToWideChar(CP_UTF8, 0, UIHState.windowClassname, -1, NULL, 0);
-    //UIHState.hwndTitle = malloc(sizeof(wchar_t) * nsize);
-    int nnsize1 = MultiByteToWideChar(CP_UTF8, 0, UIHState.windowClassname, -1, UIHState.windowClassname, nsize);
-
-    HINSTANCE hInstance = GetModuleHandle(NULL);
-
-    WNDCLASSEX window;
+    HINSTANCE hInstance = GetModuleHandleW(NULL);
+    WNDCLASSEXW window;
     window.cbSize = sizeof(WNDCLASSEX);
     window.style = CS_HREDRAW | CS_VREDRAW;
     window.lpfnWndProc = windowProcCallback;
@@ -121,93 +157,108 @@ HWND UIHCreateWindow(char *title, int x, int y, int width, int height) {
     window.hCursor = LoadCursor(NULL, IDC_ARROW);
     window.hbrBackground = (HBRUSH) COLOR_WINDOW;
     window.lpszMenuName = NULL;
-    window.lpszClassName = UIHState.windowClassname;
+    window.lpszClassName = state->windowClassname;//windowClassname;
     window.hIconSm = NULL;
 
     RegisterClassExW(&window);
 
-    UIHState.hwnd  = CreateWindowExW(NULL, UIHState.windowClassname, UIHState.hwndTitle, WS_TILEDWINDOW, x, y, width, height, NULL, NULL, hInstance, NULL);
-    SetPropW(UIHState.hwnd, UIHState.propName, &window);
+    HWND hwnd = CreateWindowExW(NULL, state->windowClassname, state->hwndTitle, WS_TILEDWINDOW, x, y, width, height, NULL, NULL, hInstance, NULL);
+    state->hwnd = hwnd;
+    //printf("hwnd=%i, state->hwnd=%i\n", hwnd, state->hwnd);
 
-    return UIHState.hwnd;
+    wchar_t tmpName[32];
+    sprintf(tmpName, "%i", state->hwnd);
+    //printf("%s", tmpName);
+
+    //printf("tmpPropName=%s\n", tmpName);
+
+    SetPropW(state->hwnd, "feck", state);
+    //UIHErr();
+
+
 }
 
-void UIHShowWindow(int hidden) {
-    if (hidden>0)
-        ShowWindow(UIHState.hwnd, SW_SHOWDEFAULT);
-    else
-        ShowWindow(UIHState.hwnd, SW_HIDE);
-    UpdateWindow(UIHState.hwnd);
+void UIHShowWindow(UIH_STATE *state, int hidden) {
+    printf("state pointer address = %p\nstate->hwnd = %i\n", state, state->hwnd);
+
+    if (hidden>0) {
+        ShowWindow(state->hwnd, SW_SHOWDEFAULT);
+    } else {
+        ShowWindow(state->hwnd, SW_HIDE);
+    }
+    UpdateWindow(state->hwnd);
 };
 
+/** modifies UIHState.controls to include a new control */
+int UIHMakeControl(UIH_STATE *state, char *text) {
 
-int UIHMakeControl(UIH_CONTROL *control, char *text) {
+    int index = state->numberOfControls++;
+    printf("index = %i\n", index);
+    state->controls[index].uuid = ++state->nextUUID;
+    int textSize = MultiByteToWideChar(CP_UTF8, 0, text, -1, NULL, 0);
+    state->controls[index].text = malloc(sizeof(wchar_t) * textSize);
+    MultiByteToWideChar(CP_UTF8, 0, text, -1, state->controls[index].text, textSize);
 
-    control->uuid = ++UIHState.controlCount;
-    UIHState.numberOfControls++;
-    printf("\n** trace 1 **\n");
-    control->text = malloc(256);
-    printf("\n** trace 2 **\n");
-
-    int nsize = MultiByteToWideChar(CP_UTF8, 0, text, -1, NULL, 0);
-    printf("\n** trace 3 **\n");
-    int nnsize = MultiByteToWideChar(CP_UTF8, 0, text, -1, control->text, nsize);
-    printf("\n** trace 4 **\n");
-    return 0;//nnsize;
+    return index;
 }
 
-UIH_CONTROL UIHAddLabel(char *text, int x, int y, int w, int h) {
+/*void UIHAddLabel(char *text, int x, int y, int w, int h) {
     UIH_CONTROL control;
     //control.uuid = ++UIHState.controlCount;
-    UIHMakeControl(&control, text);
-    printf("\n** trace 5 **\n");
+    int index = UIHMakeControl(text);
+
     //control.text = malloc(sizeof(wchar_t) + 2);
     //int nsize = MultiByteToWideChar(CP_UTF8, 0, text, -1, NULL, 0);
     //int nnsize = MultiByteToWideChar(CP_UTF8, 0, text, -1, control.text, nsize);
 
     //printf("\n** %i %i **\n", nsize, nnsize);
-    printf("\n** control.text = %i **\n", control.uuid);
+    printf("\n** control.text = %i **\n", UIHState.controls[index].uuid);
 
-    control.hwnd = CreateWindowExW(NULL, L"STATIC", control.text, WS_VISIBLE | WS_CHILD, x, y, w, h, UIHState.hwnd, (HMENU) control.uuid, NULL, NULL);
-    printf("\n** trace 6 **\n");
+    UIHState.controls[index].hwnd = CreateWindowExW(NULL, L"STATIC", UIHState.controls[index].text, WS_VISIBLE | WS_CHILD, x, y, w, h, UIHState.hwnd, (HMENU) UIHState.controls[index].uuid, NULL, NULL);
 
-    printf("** UIHAddLabel: UIHState.controlCount = %i, control.uuid = %i\n", UIHState.controlCount, control.uuid);
-    SendMessageW(control.hwnd,WM_SETFONT,
+    printf("** UIHAddLabel: UIHState.controlCount = %i, control.uuid = %i\n", UIHState.controlCount, UIHState.controls[index].uuid);
+    SendMessageW(UIHState.controls[index].hwnd,WM_SETFONT,
                  MAKEWPARAM(UIHState.font[0], 0),
                  MAKELPARAM(1, 0));
-    return control;
+    //return control;
+}*/
+
+void UIHAddButton(UIH_STATE *state, char *text, int x, int y, int w, int h, void* callback) {
+
+    int index  = UIHMakeControl(state, text);
+    state->controls[index].fnCallback = callback;
+    printf("addbutton: uuid = %i\n", state->controls[index].uuid);
+    state->controls[index].hwnd = CreateWindowExW(NULL, L"BUTTON", state->controls[index].text, WS_VISIBLE | WS_CHILD, x, y, w, h, state->hwnd, (HMENU) state->controls[index].uuid, NULL, NULL);
+    SendMessageW(state->controls[index].hwnd,
+                 WM_SETFONT,
+                 MAKEWPARAM(state->fonts[0], 0),
+                 MAKELPARAM(1, 0));
+    //return control;
 }
 
-UIH_CONTROL UIHAddButton(char *text, int x, int y, int w, int h) {
-    UIH_CONTROL control;
-    UIHMakeControl(&control, text);
-    //control.uuid = ++UIHState.controlCount;
+/*void UIHAddEdit(char *text, int x, int y, int w, int h) {
 
-    control.hwnd = CreateWindowExW(NULL, L"BUTTON", control.text, WS_VISIBLE | WS_CHILD, x, y, w, h, UIHState.hwnd, (HMENU) control.uuid, NULL, NULL);
-    printf("** UIHAddButton: UIHState.controlCount = %i, control.uuid = %i\n", UIHState.controlCount, control.uuid);
-    SendMessageW(control.hwnd,WM_SETFONT,
+    int index = UIHMakeControl(text);
+
+    UIHState.controls[index].hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", UIHState.controls[index].text, ES_MULTILINE | ES_AUTOVSCROLL | WS_VISIBLE | WS_CHILD, x, y, w, h, UIHState.hwnd, (HMENU) UIHState.controls[index].uuid, NULL, NULL);
+    printf("** UIHAddEdit: UIHState.controlCount = %i, control.uuid = %i\n", UIHState.controlCount, UIHState.controls[index].uuid);
+    SendMessageW(UIHState.controls[index].hwnd,WM_SETFONT,
                  MAKEWPARAM(UIHState.font[0], 0),
                  MAKELPARAM(1, 0));
-    return control;
 }
 
-UIH_CONTROL UIHAddEdit(char *text, int x, int y, int w, int h) {
-    UIH_CONTROL control;
-    //control.uuid = ++UIHState.controlCount;
-    UIHMakeControl(&control, text);
+void UIHDebugControl() {
 
-    control.hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", control.text, ES_MULTILINE | ES_AUTOVSCROLL | WS_VISIBLE | WS_CHILD, x, y, w, h, UIHState.hwnd, (HMENU) control.uuid, NULL, NULL);
-    printf("** UIHAddEdit: UIHState.controlCount = %i, control.uuid = %i\n", UIHState.controlCount, control.uuid);
-    SendMessageW(control.hwnd,WM_SETFONT,
-                 MAKEWPARAM(UIHState.font[0], 0),
-                 MAKELPARAM(1, 0));
-    return control;
-}
+    int index = UIHMakeControl("FK");
+    free(UIHState.controls[index].text);
+    UIHState.controls[index].text = malloc(20000000);
+}*/
 
-void UIHInit() {
-    //UIHState = malloc(sizeof(UIH_STATE));
-    UIHState.font[0] = CreateFontW(14, 0, 0, 0, FW_REGULAR, 0, 0, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, TEXT("Microsoft Sans Serif"));
-    UIHState.controlCount = 1000;
+void UIHInit(UIH_STATE *state) {
+
+    state->fonts[0] = CreateFontW(14, 0, 0, 0, FW_REGULAR, 0, 0, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, TEXT("Microsoft Sans Serif"));
+    state->nextUUID = 1000;
+
     INITCOMMONCONTROLSEX c;
     c.dwICC = ICC_TAB_CLASSES;
     c.dwSize = sizeof(INITCOMMONCONTROLSEX);
@@ -217,20 +268,21 @@ void UIHInit() {
 
 }
 
-void UIHClean() {
-    //free(UIHState.propName);
+void UIHClean(UIH_STATE *state) {
+
     int i = 0;
     while(i < UIH_NUM_FONTS) {
-        DeleteObject(UIHState.font[i++]);
+        DeleteObject(state->fonts[i++]);
     }
     i = 0;
-    while (i < UIHState.numberOfControls) {
-        free(UIHState.controls[i].text);
-        i++;
+    while (i < state->numberOfControls) {
+        //UIH_CONTROL control = UIHState.controls[i++];
+        free(state->controls[i++].text);
     }
 
 
-    free(UIHState.hwndTitle);
+    free(state->hwndTitle);
+    free(state->windowClassname);
     //UIHState.
 }
 

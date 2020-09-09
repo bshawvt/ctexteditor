@@ -9,6 +9,10 @@
 #include "util.h"
 
 
+void* buttonFunction() {
+    printf("found the thing");
+}
+
 int main(int argc, char* args[]) {
     /*char a[] = "hello-";
     char b[] = "-world";
@@ -24,14 +28,35 @@ int main(int argc, char* args[]) {
     //wchar_t op[] = {0x19990,0x30028,0x20320, 0x22909, 0x12371, 0x12435, 0x12395, 0x12385, 0x12399, 0x12289, 0x19990, 0x30028, 0x00, 0x00};
     //世界你好\nこんにちは、世界 Hello World"};
 
-    UIHInit();
-    UIHCreateWindow("世界你好Heck", 10, 10, 250, 200);
+    /*UIH_STATE *state = UIHMakeState();
+    printf("state pointer address in %s() = %p\n", __FUNCTION__, state);
+    UIHInit(state);
+    UIHCreateWindow(state, "世界你好Heck", 10, 10, 250, 200);
     //UIHAddLabel(L"世界你好\nこんにちは、世界\nHello World", 10, 10, 150, 50);
-    UIHAddLabel("世界你好\nこんにちは、世界\nHello World!!!?", 10, 100, 150, 50);
+    //UIHAddLabel("世界你好\nこんにちは、世界\nHello World!!!?", 10, 100, 150, 50);
     //UIHAddLabel("世界你好\nこんにちは、世界\nHello World!!!?", 100, 100, 150, 50);
-    UIHAddButton("世界你好Fek", 100, 100, 50, 25);
-    UIHAddEdit("世界你好\nこんにちは、世界", 5, 5, 225, 80);
-    UIHShowWindow(1);
+
+    UIHAddButton(state, "世界你好Fek", 100, 100, 75, 25, &buttonFunction);
+    //UIHAddEdit("世界你好\nこんにちは、世界", 5, 5, 225, 80);
+
+    UIHShowWindow(state, 1);*/
+
+    // second window i guess idk
+    UIH_STATE *state2 = UIHMakeState();
+    printf("state2 pointer address in %s() = %p\n", __FUNCTION__, state2);
+    UIHInit(state2);
+    UIHCreateWindow(state2, "世界你好Heck", 10, 10, 250, 200);
+    //UIHAddLabel(L"世界你好\nこんにちは、世界\nHello World", 10, 10, 150, 50);
+    //UIHAddLabel("世界你好\nこんにちは、世界\nHello World!!!?", 10, 100, 150, 50);
+    //UIHAddLabel("世界你好\nこんにちは、世界\nHello World!!!?", 100, 100, 150, 50);
+
+    UIHAddButton(state2, "oddwarg is butts", 100, 100, 125, 25, &buttonFunction);
+    //UIHAddEdit("世界你好\nこんにちは、世界", 5, 5, 225, 80);
+
+    UIHShowWindow(state2, 1);
+    UIHErr();
+
+
     while(1) {
         MSG msg;
         if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
