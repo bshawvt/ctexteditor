@@ -9,8 +9,17 @@
 #include "util.h"
 
 
-void* buttonFunction() {
-    printf("found the thing");
+void buttonFunction(UIH_STATE *state, void *data) {
+    printf("button activate fnCallback state address = %p\n", state);
+    printf("button activate fnCallback data address = %p\n", data);
+
+    UIH_CONTROL *control = (UIH_CONTROL*) data;
+
+    //printf("control->text = %s\n", control->text);
+    //MessageBoxW(state->hwnd, control->text, L"THING", 0);
+    UIHGetString(control);
+
+
 }
 
 int main(int argc, char* args[]) {
@@ -42,20 +51,29 @@ int main(int argc, char* args[]) {
     UIHShowWindow(state, 1);*/
 
     // second window i guess idk
-    UIH_STATE *state2 = UIHMakeState();
-    printf("state2 pointer address in %s() = %p\n", __FUNCTION__, state2);
-    UIHInit(state2);
-    UIHCreateWindow(state2, "世界你好Heck", 10, 10, 250, 200);
-    //UIHAddLabel(L"世界你好\nこんにちは、世界\nHello World", 10, 10, 150, 50);
-    //UIHAddLabel("世界你好\nこんにちは、世界\nHello World!!!?", 10, 100, 150, 50);
-    //UIHAddLabel("世界你好\nこんにちは、世界\nHello World!!!?", 100, 100, 150, 50);
+    UIH_STATE *state1 = UIHMakeState();
+    if (state1 != NULL) {
+        printf("state pointer address in %s() = %p\n", __FUNCTION__, state1);
+        UIHInit(state1);//(UIH_STATE*)0x0);
+        UIHCreateWindow(state1, "世界你好Heck", 10, 10, 250, 200);
+        //UIHAddLabel(L"世界你好\nこんにちは、世界\nHello World", 10, 10, 150, 50);
+        UIH_CONTROL *label1 = UIHAddLabel(state1, "世界你好\nこんにちは、世界\nHello World!!!?", 0, 10, 100, 150, 50);
+        UIH_CONTROL *edit1 = UIHAddEdit(state1, "世界你好\nこんにちは、世界", 0, 5, 5, 225, 80);
+        //UIHAddLabel("世界你好\nこんにちは、世界\nHello World!!!?", 100, 100, 150, 50);
 
-    UIHAddButton(state2, "oddwarg is butts", 100, 100, 125, 25, &buttonFunction);
-    //UIHAddEdit("世界你好\nこんにちは、世界", 5, 5, 225, 80);
+        UIHAddButton(state1, "基佬", 0, 100, 100, 125, 25, &buttonFunction, edit1);
+        //UIHAddButton(state1, "no callback", 0, 100, 70, 125, 25, NULL, NULL);
 
-    UIHShowWindow(state2, 1);
-    UIHErr();
 
+        UIHShowWindow(state1, 1);
+        UIHErr();
+
+    }
+    else {
+        //UIHDisplayError();
+        UIHDisplayError("Feckin' memory didn't allocate yo", __FUNCTION__, 1, "Error");
+        return -1;
+    }
 
     while(1) {
         MSG msg;
