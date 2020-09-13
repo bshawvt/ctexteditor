@@ -9,11 +9,20 @@
 #define _UNICODE
 #endif
 
-#include "windows.h"
-#include "Commctrl.h"
-#include "stdint.h"
+#include "string.h"
+#include "stdlib.h"
+#include "locale.h"
+
+
 
 #include "util.h"
+
+#include "windows.h"
+#include "mbstring.h"
+#include "Commctrl.h"
+#include "locale.h"
+
+
 
 /// utf tests
 #define UIH_HelloWorld_Hanzi "世界你好"
@@ -115,7 +124,7 @@ LRESULT CALLBACK windowProcCallback(HWND hwnd, UINT umsg, WPARAM wparam, LPARAM 
             case WM_CLOSE: {
                 printf("close");
                 UIHClean(state);
-                RemovePropW(hwnd, UIH_PROPNAME_STATE);
+
                 break;
             }
             default: {
@@ -132,20 +141,22 @@ LRESULT CALLBACK windowProcCallback(HWND hwnd, UINT umsg, WPARAM wparam, LPARAM 
     return DefWindowProcW(hwnd, umsg, wparam, lparam);
 }
 
-void UIHGetString(UIH_CONTROL *control) {
+wchar_t *UIHGetString(UIH_CONTROL *control) {
     int editSize = SendMessageW(control->hwnd, WM_GETTEXTLENGTH, 0, 0);
-    int bufferSize = (editSize * sizeof(wchar_t));
 
-    wchar_t tmpBuffer[bufferSize];
-    SendMessageW(control->hwnd, WM_GETTEXT, MAKEWPARAM(editSize, 0), MAKELPARAM(tmpBuffer, 0));
+    wchar_t *buffer = malloc(editSize * sizeof(wchar_t));//[bufferSize];
+    SendMessageW(control->hwnd, WM_GETTEXT, editSize, buffer);
 
-    int textSize = MultiByteToWideChar(CP_UTF8, 0, tmpBuffer, -1, NULL, 0);
-    printf("textSize = %i\n", textSize);
-    wchar_t buffer[bufferSize];
+    //int textSize = MultiByteToWideChar(CP_UTF8, 0, tmpBuffer, -1, NULL, 0);
+    printf("textSize = %i\ndata? = %s\n", editSize, buffer);
+    //wchar_t buffer[bufferSize];
 
-    MultiByteToWideChar(CP_UTF8, 0, tmpBuffer, -1, buffer, textSize);
+    //MultiByteToWideChar(CP_UTF8, 0, tmpBuffer, -1, buffer, textSize);
 
-    MessageBoxW(0, buffer, L"title", 0);
+    //MessageBoxW(0, tmpBuffer, L"title", 0);
+
+    return buffer;
+
 }
 
 /*std::string getString(int id) {
@@ -203,7 +214,7 @@ void UIHCreateWindow(UIH_STATE *state, char *title, int x, int y, int width, int
 }
 
 void UIHShowWindow(UIH_STATE *state, int hidden) {
-    if (hidden>0) {
+    if (hidden) {
         ShowWindow(state->hwnd, SW_SHOWDEFAULT);
     } else {
         ShowWindow(state->hwnd, SW_HIDE);
@@ -211,15 +222,26 @@ void UIHShowWindow(UIH_STATE *state, int hidden) {
     UpdateWindow(state->hwnd);
 };
 
-/** modifies UIH_STATE.controls to include a new control */
+/** \brief Private function which allocates memory and converts char to widechar
+ *
+ * \param UIH_STATE pointer
+ * \param array of chracters
+ * \return state->controls index of newly created control
+ *
+ */
 int UIHMakeControl(UIH_STATE *state, char *text) {
-    int index = state->numberOfControls++;
-    state->controls[index].uuid = ++state->nextUUID;
-    int textSize = MultiByteToWideChar(CP_UTF8, 0, text, -1, NULL, 0);
-    state->controls[index].text = malloc(sizeof(wchar_t) * textSize);
-    MultiByteToWideChar(CP_UTF8, 0, text, -1, state->controls[index].text, textSize);
-
-    return index;
+    if (state->numberOfControls < UIH_NUM_CONTROLS) {
+        int index = state->numberOfControls++;
+        state->controls[index].uuid = ++state->nextUUID;
+        int textSize = MultiByteToWideChar(CP_UTF8, 0, text, -1, NULL, 0);
+        state->controls[index].text = malloc(sizeof(wchar_t) * textSize);
+        MultiByteToWideChar(CP_UTF8, 0, text, -1, state->controls[index].text, textSize);
+        return index;
+    }
+    else {
+        UIHDisplayError("exceeded UIH_NUM_CONTROLS", __FUNCTION__, 0, "");
+        return -1;
+    }
 }
 
 UIH_CONTROL *UIHAddLabel(UIH_STATE *state, char *text, int fontid, int x, int y, int w, int h) {
@@ -257,7 +279,7 @@ UIH_CONTROL *UIHAddButton(UIH_STATE *state, char *text, int fontid, int x, int y
 UIH_CONTROL *UIHAddEdit(UIH_STATE *state, char *text, int fontid, int x, int y, int w, int h) {
     int index  = UIHMakeControl(state, text);
 
-    printf("%s: uuid = %i\n", __FUNCTION__, state->controls[index].uuid);
+    printf("%s: uuid = %li\n", __FUNCTION__, state->controls[index].uuid);
     state->controls[index].hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", state->controls[index].text, ES_MULTILINE | ES_AUTOVSCROLL | WS_VISIBLE | WS_CHILD, x, y, w, h, state->hwnd, (HMENU) state->controls[index].uuid, NULL, NULL);
     SendMessageW(state->controls[index].hwnd,
                  WM_SETFONT,
@@ -265,20 +287,20 @@ UIH_CONTROL *UIHAddEdit(UIH_STATE *state, char *text, int fontid, int x, int y, 
                  MAKELPARAM(1, 0));
     return &state->controls[index];
 }
-/*
-void UIHDebugControl() {
 
-    int index = UIHMakeControl("FK");
-    free(UIHState.controls[index].text);
-    UIHState.controls[index].text = malloc(20000000);
-}*/
 int UIHLoadFont(UIH_STATE *state, char *fontName) {
-    int index = state->numberOfFonts++;
-    int fontNameSize = MultiByteToWideChar(CP_UTF8, 0, fontName, -1, NULL, 0);
-    wchar_t tmpFontName[fontNameSize];
-    MultiByteToWideChar(CP_UTF8, 0, fontName, -1,tmpFontName, fontNameSize);
-    state->fonts[index] = CreateFontW(14, 0, 0, 0, FW_REGULAR, 0, 0, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, tmpFontName);//TEXT("Microsoft Sans Serif"));
-    return index;
+    if (state->numberOfFonts < UIH_NUM_FONTS) {
+        int index = state->numberOfFonts++;
+        int fontNameSize = MultiByteToWideChar(CP_UTF8, 0, fontName, -1, NULL, 0);
+        wchar_t tmpFontName[fontNameSize];
+        MultiByteToWideChar(CP_UTF8, 0, fontName, -1,tmpFontName, fontNameSize);
+        state->fonts[index] = CreateFontW(14, 0, 0, 0, FW_REGULAR, 0, 0, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, tmpFontName);//TEXT("Microsoft Sans Serif"));
+        return index;
+    }
+    else {
+        UIHDisplayError("exceeded UIH_NUM_FONTS", __FUNCTION__, 0, "");
+        return -1;
+    }
 }
 
 void UIHInit(UIH_STATE *state) {
@@ -308,6 +330,9 @@ void UIHClean(UIH_STATE *state) {
 
     free(state->hwndTitle);
     free(state->windowClassname);
+
+    RemovePropW(state->hwnd, UIH_PROPNAME_STATE);
+
 }
 
 

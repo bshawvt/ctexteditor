@@ -14,58 +14,74 @@ void buttonFunction(UIH_STATE *state, void *data) {
     printf("button activate fnCallback data address = %p\n", data);
 
     UIH_CONTROL *control = (UIH_CONTROL*) data;
+    if (data!=NULL) {
+        wchar_t *editText = UIHGetString(control);
 
-    //printf("control->text = %s\n", control->text);
-    //MessageBoxW(state->hwnd, control->text, L"THING", 0);
-    UIHGetString(control);
+        int textSize = MultiByteToWideChar(CP_UTF8, 0, editText, -1, NULL, 0);
+        int bufferSize = sizeof(wchar_t) * textSize;
+        wchar_t buffer[bufferSize];
+        MultiByteToWideChar(CP_UTF8, 0, editText, -1, buffer, textSize);
+
+        FILE *file = fopen("myfilename1.txt", "w+,ccs=UTF-8");
+        fseek(file, 0, SEEK_SET);
+        fprintf(file, "%s", editText);
+        fclose(file);
+
+        FILE *file1 = fopen("myfilename2.txt", "w+,ccs=UTF-8");
+        fseek(file1, 0, SEEK_SET);
+        fprintf(file1, "%s", buffer);
+        fclose(file1);
+
+        FILE *file2 = fopen("myfilename3.txt", "w+,ccs=UTF-8");
+        fseek(file2, 0, SEEK_SET);
+        fprintf(file2, "%c", editText);
+        fclose(file2);
+
+        FILE *file3 = fopen("myfilename4.txt", "w+,ccs=UTF-8");
+        fseek(file3, 0, SEEK_SET);
+        fprintf(file3, "%c", buffer);
+        fclose(file3);
 
 
+
+        FILE *file4 = fopen("myfilename5.txt", "w+,ccs=UTF-8");
+        fseek(file4, 0, SEEK_SET);
+        fwprintf(file4, "%s", editText);
+        fclose(file4);
+
+        FILE *file5 = fopen("myfilename6.txt", "w+,ccs=UTF-8");
+        fseek(file5, 0, SEEK_SET);
+        fwprintf(file5, "%s", buffer);
+        fclose(file5);
+
+        FILE *file6 = fopen("myfilename7.txt", "w+,ccs=UTF-8");
+        fseek(file6, 0, SEEK_SET);
+        fwprintf(file6, "%c", editText);
+        fclose(file6);
+
+        FILE *file7 = fopen("myfilename8.txt", "w+,ccs=UTF-8");
+        fseek(file7, 0, SEEK_SET);
+        fwprintf(file7, "%c", buffer);
+        fclose(file7);
+
+
+        free(editText);
+    }
 }
 
 int main(int argc, char* args[]) {
-    /*char a[] = "hello-";
-    char b[] = "-world";
 
+    UIH_STATE *state = UIHMakeState();
+    if (state != NULL) {
+        printf("state pointer address in %s() = %p\n", __FUNCTION__, state);
+        UIHInit(state);
+        UIHCreateWindow(state, "世界你好Heck", 10, 10, 250, 200);
 
-    \u19990\u30028\u20320\u22909
-    \u12371\u12435\u12395\u12385\u12399\u12289\u19990\u30028
-    世界你好\nこんにちは、世界 Hello World"
+        UIH_CONTROL *label1 = UIHAddLabel(state, "世界你好\nこんにちは、世界\nHello World!!!?", 0, 10, 100, 150, 50);
+        UIH_CONTROL *edit1 = UIHAddEdit(state, "heck世界你好こんにちは、世界feck", 0, 5, 5, 225, 80);
+        UIHAddButton(state, "基佬", 0, 100, 100, 125, 25, &buttonFunction, edit1);
 
-
-    CharConcat(a, b);*/
-
-    //wchar_t op[] = {0x19990,0x30028,0x20320, 0x22909, 0x12371, 0x12435, 0x12395, 0x12385, 0x12399, 0x12289, 0x19990, 0x30028, 0x00, 0x00};
-    //世界你好\nこんにちは、世界 Hello World"};
-
-    /*UIH_STATE *state = UIHMakeState();
-    printf("state pointer address in %s() = %p\n", __FUNCTION__, state);
-    UIHInit(state);
-    UIHCreateWindow(state, "世界你好Heck", 10, 10, 250, 200);
-    //UIHAddLabel(L"世界你好\nこんにちは、世界\nHello World", 10, 10, 150, 50);
-    //UIHAddLabel("世界你好\nこんにちは、世界\nHello World!!!?", 10, 100, 150, 50);
-    //UIHAddLabel("世界你好\nこんにちは、世界\nHello World!!!?", 100, 100, 150, 50);
-
-    UIHAddButton(state, "世界你好Fek", 100, 100, 75, 25, &buttonFunction);
-    //UIHAddEdit("世界你好\nこんにちは、世界", 5, 5, 225, 80);
-
-    UIHShowWindow(state, 1);*/
-
-    // second window i guess idk
-    UIH_STATE *state1 = UIHMakeState();
-    if (state1 != NULL) {
-        printf("state pointer address in %s() = %p\n", __FUNCTION__, state1);
-        UIHInit(state1);//(UIH_STATE*)0x0);
-        UIHCreateWindow(state1, "世界你好Heck", 10, 10, 250, 200);
-        //UIHAddLabel(L"世界你好\nこんにちは、世界\nHello World", 10, 10, 150, 50);
-        UIH_CONTROL *label1 = UIHAddLabel(state1, "世界你好\nこんにちは、世界\nHello World!!!?", 0, 10, 100, 150, 50);
-        UIH_CONTROL *edit1 = UIHAddEdit(state1, "世界你好\nこんにちは、世界", 0, 5, 5, 225, 80);
-        //UIHAddLabel("世界你好\nこんにちは、世界\nHello World!!!?", 100, 100, 150, 50);
-
-        UIHAddButton(state1, "基佬", 0, 100, 100, 125, 25, &buttonFunction, edit1);
-        //UIHAddButton(state1, "no callback", 0, 100, 70, 125, 25, NULL, NULL);
-
-
-        UIHShowWindow(state1, 1);
+        UIHShowWindow(state, 1);
         UIHErr();
 
     }
