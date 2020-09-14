@@ -13,14 +13,12 @@
 #include "stdlib.h"
 #include "locale.h"
 
-
-
-#include "util.h"
-
 #include "windows.h"
 #include "mbstring.h"
 #include "Commctrl.h"
 #include "locale.h"
+
+
 
 
 
@@ -67,7 +65,6 @@ UIH_STATE *UIHMakeState() {
     *state = (UIH_STATE) {0};
     return state;
 }
-
 
 
 int UIHErrorCallCount = 1;
@@ -143,20 +140,11 @@ LRESULT CALLBACK windowProcCallback(HWND hwnd, UINT umsg, WPARAM wparam, LPARAM 
 
 wchar_t *UIHGetString(UIH_CONTROL *control) {
     int editSize = SendMessageW(control->hwnd, WM_GETTEXTLENGTH, 0, 0);
-
-    wchar_t *buffer = malloc(editSize * sizeof(wchar_t));//[bufferSize];
-    SendMessageW(control->hwnd, WM_GETTEXT, editSize, buffer);
-
-    //int textSize = MultiByteToWideChar(CP_UTF8, 0, tmpBuffer, -1, NULL, 0);
-    printf("textSize = %i\ndata? = %s\n", editSize, buffer);
-    //wchar_t buffer[bufferSize];
-
-    //MultiByteToWideChar(CP_UTF8, 0, tmpBuffer, -1, buffer, textSize);
-
-    //MessageBoxW(0, tmpBuffer, L"title", 0);
-
+    wchar_t *buffer = malloc((editSize+1) * sizeof(wchar_t));
+    SendMessageW(control->hwnd, WM_GETTEXT, editSize+1, buffer);
+    printf("textSize = %i\ndata? = %s\nsize of buffer = %i\n", editSize, buffer, (editSize * sizeof(wchar_t)));
+    MessageBoxW(0, buffer, L"title", 0);
     return buffer;
-
 }
 
 /*std::string getString(int id) {
@@ -304,7 +292,8 @@ int UIHLoadFont(UIH_STATE *state, char *fontName) {
 }
 
 void UIHInit(UIH_STATE *state) {
-    _wsetlocale(LC_ALL, "en_US.utf8");
+    //_wsetlocale(LC_ALL, "en_US.utf8");
+    setlocale(LC_ALL, "");
 
     UIHLoadFont(state, "Microsoft Sans Serif"); // make state->fonts[0] the default font
     state->nextUUID = 1000;
