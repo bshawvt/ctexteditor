@@ -60,7 +60,8 @@ typedef struct UIH_STATE {
 UIH_STATE *UIHMakeState() {
     UIH_STATE *state = (UIH_STATE*) malloc(sizeof(UIH_STATE));
     if (state == NULL) {
-        printf("\n\n****fek****\n\n");
+        UIHDisplayError("Bad things have happened and couldn't allocate memory for state", __FUNCTION__, 1, "Error");
+        return NULL;
     }
     *state = (UIH_STATE) {0};
     return state;
@@ -100,7 +101,6 @@ LRESULT CALLBACK windowProcCallback(HWND hwnd, UINT umsg, WPARAM wparam, LPARAM 
             case WM_COMMAND: {
                 for(int i = 0; i < state->numberOfControls; i++) {
                     UIH_CONTROL control = state->controls[i];
-                    printf("id=%i, control.uuid=%i, state->numberOfControls=%i, control.hwnd=%i\n", id, control.uuid, state->numberOfControls, control.hwnd);
                     if (id == control.uuid) {
                         if (control.fnCallback != NULL) {
                             HANDLE tHandle = GetPropW(control.hwnd, UIH_PROPNAME_CALLBACK);
@@ -131,36 +131,33 @@ LRESULT CALLBACK windowProcCallback(HWND hwnd, UINT umsg, WPARAM wparam, LPARAM 
         }
     }
     else {
-        //UIHError("handle is null!", __FUNCTION__);
         UIHDisplayError("handle is null!", __FUNCTION__, 0, "");
-        //printf("Error in %s():\n handle is null!\n", __FUNCTION__);
     }
     return DefWindowProcW(hwnd, umsg, wparam, lparam);
+}
+void UIHSetString(UIH_CONTROL *control, char *text) {
+
+    int textSize = MultiByteToWideChar(CP_UTF8, 0, text, -1, NULL, 0);
+
+    wchar_t *tmpBuffer = malloc(textSize * sizeof(wchar_t));
+
+    MultiByteToWideChar(CP_UTF8, 0, text, -1, tmpBuffer, textSize);
+
+
+
+    SendMessageW(control->hwnd, WM_SETTEXT, 0, tmpBuffer);
+
+    free(tmpBuffer);
+
+
 }
 
 wchar_t *UIHGetString(UIH_CONTROL *control) {
     int editSize = SendMessageW(control->hwnd, WM_GETTEXTLENGTH, 0, 0);
     wchar_t *buffer = malloc((editSize+1) * sizeof(wchar_t));
     SendMessageW(control->hwnd, WM_GETTEXT, editSize+1, buffer);
-    printf("textSize = %i\ndata? = %s\nsize of buffer = %i\n", editSize, buffer, (editSize * sizeof(wchar_t)));
-    MessageBoxW(0, buffer, L"title", 0);
     return buffer;
 }
-
-/*std::string getString(int id) {
-    HWND handle = getHandle(id);
-    int l = SendMessage(handle, WM_GETTEXTLENGTH, 0, 0);
-    char* buffer = new char[l];
-
-    SendMessage(handle, WM_GETTEXT, (WPARAM) l+1, (LPARAM) buffer);
-
-    std::string t = buffer;
-    delete buffer;
-
-    return t;
-
-}*/
-
 
 void UIHCreateWindow(UIH_STATE *state, char *title, int x, int y, int width, int height) {
     int classnameSize = MultiByteToWideChar(CP_UTF8, 0, title, -1, NULL, 0);
@@ -217,7 +214,7 @@ void UIHShowWindow(UIH_STATE *state, int hidden) {
  * \return state->controls index of newly created control
  *
  */
-int UIHMakeControl(UIH_STATE *state, char *text) {
+static int UIHMakeControl(UIH_STATE *state, char *text) {
     if (state->numberOfControls < UIH_NUM_CONTROLS) {
         int index = state->numberOfControls++;
         state->controls[index].uuid = ++state->nextUUID;
@@ -292,7 +289,6 @@ int UIHLoadFont(UIH_STATE *state, char *fontName) {
 }
 
 void UIHInit(UIH_STATE *state) {
-    //_wsetlocale(LC_ALL, "en_US.utf8");
     setlocale(LC_ALL, "");
 
     UIHLoadFont(state, "Microsoft Sans Serif"); // make state->fonts[0] the default font
@@ -312,7 +308,6 @@ void UIHClean(UIH_STATE *state) {
     }
     i = 0;
     while (i < state->numberOfControls) {
-        //UIH_CONTROL control = UIHState.controls[i++];
         RemovePropW(state->controls[i++].hwnd, UIH_PROPNAME_CALLBACK);
         free(state->controls[i++].text);
     }

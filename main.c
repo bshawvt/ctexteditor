@@ -51,58 +51,19 @@ void buttonFunction(UIH_STATE *state, void *data) {
     }
 }
 
-//        wchar_t *editText = UIHGetString(control);
-//
-//        int textSize = MultiByteToWideChar(CP_UTF8, 0, editText, -1, NULL, 0);
-//        int bufferSize = sizeof(wchar_t) * textSize;
-//        wchar_t buffer[bufferSize];
-//        MultiByteToWideChar(CP_UTF8, 0, editText, -1, buffer, textSize);
-//
-//
-//
-//        FILE *file = fopen("myfilename1.txt", "w+,ccs=UTF-8");
-//        fseek(file, 0, SEEK_SET);
-//        fprintf(file, "%s", editText);
-//        fclose(file);
-//
-//        FILE *file1 = fopen("myfilename2.txt", "w+,ccs=UTF-8");
-//        fseek(file1, 0, SEEK_SET);
-//        fprintf(file1, "%s", buffer);
-//        fclose(file1);
-//
-//        FILE *file2 = fopen("myfilename3.txt", "w+,ccs=UTF-8");
-//        fseek(file2, 0, SEEK_SET);
-//        fprintf(file2, "%c", editText);
-//        fclose(file2);
-//
-//        FILE *file3 = fopen("myfilename4.txt", "w+,ccs=UTF-8");
-//        fseek(file3, 0, SEEK_SET);
-//        fprintf(file3, "%c", buffer);
-//        fclose(file3);
-//
-//        FILE *file4 = fopen("myfilename5.txt", "w+,ccs=UTF-8");
-//        fseek(file4, 0, SEEK_SET);
-//        fwprintf(file4, "%s", editText);
-//        fclose(file4);
-//
-//        FILE *file5 = fopen("myfilename6.txt", "w+,ccs=UTF-8");
-//        fseek(file5, 0, SEEK_SET);
-//        fwprintf(file5, "%s", buffer);
-//        fclose(file5);
-//
-//        FILE *file6 = fopen("myfilename7.txt", "w+,ccs=UTF-8");
-//        fseek(file6, 0, SEEK_SET);
-//        fwprintf(file6, "%c", editText);
-//        fclose(file6);
-//
-//        FILE *file7 = fopen("myfilename8.txt", "w+,ccs=UTF-8");
-//        fseek(file7, 0, SEEK_SET);
-//        fwprintf(file7, "%c", buffer);
-//        fclose(file7);
-//
-//        free(editText);
-//    }
-//}
+
+void buttonFunction2(UIH_STATE *state, void *data) {
+
+    //FILE *file = fopen("myfilename.txt", "a+");
+
+    UIH_CONTROL *control = (UIH_CONTROL*) data;
+
+    if (data!=NULL) {
+        UIHSetString(control, "henlo世界你好");
+    }
+
+
+}
 
 int main(int argc, char* args[]) {
 
@@ -114,7 +75,8 @@ int main(int argc, char* args[]) {
 
         UIH_CONTROL *label1 = UIHAddLabel(state, "世界你好\nこんにちは、世界\nHello World!!!?", 0, 10, 100, 150, 50);
         UIH_CONTROL *edit1 = UIHAddEdit(state, "heck世界你好こんにちは、世界feck", 0, 5, 5, 225, 80);
-        UIHAddButton(state, "基佬", 0, 100, 100, 125, 25, &buttonFunction, edit1);
+        UIHAddButton(state, "基佬", 0, 100, 90, 125, 25, &buttonFunction, edit1);
+        UIHAddButton(state, "poop", 0, 100, 120, 125, 25, &buttonFunction2, edit1);
 
         UIHShowWindow(state, 1);
         UIHErr();
