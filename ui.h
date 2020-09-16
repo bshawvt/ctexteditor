@@ -135,27 +135,20 @@ LRESULT CALLBACK windowProcCallback(HWND hwnd, UINT umsg, WPARAM wparam, LPARAM 
     }
     return DefWindowProcW(hwnd, umsg, wparam, lparam);
 }
+
+
 void UIHSetString(UIH_CONTROL *control, char *text) {
-
     int textSize = MultiByteToWideChar(CP_UTF8, 0, text, -1, NULL, 0);
-
     wchar_t *tmpBuffer = malloc(textSize * sizeof(wchar_t));
-
     MultiByteToWideChar(CP_UTF8, 0, text, -1, tmpBuffer, textSize);
-
-
-
     SendMessageW(control->hwnd, WM_SETTEXT, 0, tmpBuffer);
-
     free(tmpBuffer);
-
-
 }
 
 wchar_t *UIHGetString(UIH_CONTROL *control) {
     int editSize = SendMessageW(control->hwnd, WM_GETTEXTLENGTH, 0, 0);
-    wchar_t *buffer = malloc((editSize+1) * sizeof(wchar_t));
-    SendMessageW(control->hwnd, WM_GETTEXT, editSize+1, buffer);
+    wchar_t *buffer = malloc(sizeof(wchar_t) * (editSize + sizeof(wchar_t)));
+    SendMessageW(control->hwnd, WM_GETTEXT, editSize + sizeof(wchar_t), buffer);
     return buffer;
 }
 
@@ -163,8 +156,8 @@ void UIHCreateWindow(UIH_STATE *state, char *title, int x, int y, int width, int
     int classnameSize = MultiByteToWideChar(CP_UTF8, 0, title, -1, NULL, 0);
     int titleSize = MultiByteToWideChar(CP_UTF8, 0, title, -1, NULL, 0);
 
-    state->windowClassname = malloc(classnameSize * sizeof(wchar_t));
-    state->hwndTitle = malloc(titleSize * sizeof(wchar_t));
+    state->windowClassname = malloc(sizeof(wchar_t) * (classnameSize + sizeof(wchar_t)));
+    state->hwndTitle = malloc(sizeof(wchar_t) + (titleSize * sizeof(wchar_t)));
 
     char tmpClassname[classnameSize];
     sprintf(tmpClassname, "%p%s", state, title);
@@ -219,7 +212,7 @@ static int UIHMakeControl(UIH_STATE *state, char *text) {
         int index = state->numberOfControls++;
         state->controls[index].uuid = ++state->nextUUID;
         int textSize = MultiByteToWideChar(CP_UTF8, 0, text, -1, NULL, 0);
-        state->controls[index].text = malloc(sizeof(wchar_t) * textSize);
+        state->controls[index].text = malloc(sizeof(wchar_t) * (textSize + sizeof(wchar_t)));
         MultiByteToWideChar(CP_UTF8, 0, text, -1, state->controls[index].text, textSize);
         return index;
     }

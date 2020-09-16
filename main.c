@@ -39,12 +39,12 @@ void buttonFunction(UIH_STATE *state, void *data) {
 
         int editTextSize2 = WideCharToMultiByte(CP_UTF8, 0, editText, -1, NULL, 0, NULL, NULL);
         printf("sizeof editTextSize2 = %i\n", editTextSize2);
-        char *buffer = malloc(sizeof(char) * editTextSize2 + 10);
+
+        char *buffer = malloc(sizeof(char) * (editTextSize2 + 1));
         WideCharToMultiByte(CP_UTF8, 0, editText, -1, buffer, editTextSize2, NULL, NULL);
 
         FILE *file = fopen("myfilename.txt", "w+");//,ccs=UTF-8");//ccs=UTF-16LE");
-        printf("??? = %c\n", buffer[editTextSize2]);
-        fwrite(buffer, sizeof(char), editTextSize2 - 1, file);
+        fwrite(buffer, sizeof(char), editTextSize2 - sizeof(char), file);
         fclose(file);
         free(editText);
         free(buffer);
@@ -53,16 +53,21 @@ void buttonFunction(UIH_STATE *state, void *data) {
 
 
 void buttonFunction2(UIH_STATE *state, void *data) {
+    FILE *file = fopen("myfilename.txt", "a+");
 
-    //FILE *file = fopen("myfilename.txt", "a+");
-
+    fseek(file, 0, SEEK_END);
+    long size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    char *buffer = malloc(sizeof(char) * (size + 1));
+    size_t r = fread(buffer, sizeof(char), size, file);
+    buffer[size] = '\0';
     UIH_CONTROL *control = (UIH_CONTROL*) data;
 
     if (data!=NULL) {
-        UIHSetString(control, "henlo世界你好");
+        UIHSetString(control, buffer);
     }
-
-
+    fclose(file);
+    free(buffer);
 }
 
 int main(int argc, char* args[]) {
