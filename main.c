@@ -61,13 +61,19 @@ void buttonFunction2(UIH_STATE *state, void *data) {
     char *buffer = malloc(sizeof(char) * (size + 1));
     size_t r = fread(buffer, sizeof(char), size, file);
     buffer[size] = '\0';
-    UIH_CONTROL *control = (UIH_CONTROL*) data;
 
+    UIH_CONTROL *control = (UIH_CONTROL*) data;
     if (data!=NULL) {
         UIHSetString(control, buffer);
     }
     fclose(file);
     free(buffer);
+    printf("asdasd\n");
+}
+
+void menuCallbacks(UIH_STATE *state, int menuId, void *editControl) {
+    //printf("bleh?\n");
+    printf("state = %p\nmenuId = %i\neditControl = %p\n", state, menuId, editControl);
 }
 
 int main(int argc, char* args[]) {
@@ -78,10 +84,29 @@ int main(int argc, char* args[]) {
         UIHInit(state);
         UIHCreateWindow(state, "世界你好Heck", 10, 10, 250, 200);
 
+
+        HMENU child = CreateMenu();
+        HMENU parent = CreateMenu();
+
+        AppendMenuW(parent, MF_POPUP, child, L"File");
+        AppendMenuW(child, MF_STRING, UIHGetNextMenuUUID(state), L"&Open");
+        AppendMenuW(child, MF_STRING, UIHGetNextMenuUUID(state), L"&Save");
+        AppendMenuW(child, MF_SEPARATOR, 0, NULL);
+        AppendMenuW(child, MF_STRING, UIHGetNextMenuUUID(state), L"&Quit");
+
+        SetMenu(state->hwnd, parent);
+
         UIH_CONTROL *label1 = UIHAddLabel(state, "世界你好\nこんにちは、世界\nHello World!!!?", 0, 10, 100, 150, 50);
         UIH_CONTROL *edit1 = UIHAddEdit(state, "heck世界你好こんにちは、世界feck", 0, 5, 5, 225, 80);
         UIHAddButton(state, "基佬", 0, 100, 90, 125, 25, &buttonFunction, edit1);
         UIHAddButton(state, "poop", 0, 100, 120, 125, 25, &buttonFunction2, edit1);
+
+        UIH_CALLBACK tmpCallbackStruct;
+        tmpCallbackStruct.data1 = &edit1;
+        tmpCallbackStruct.data2 = &label1;
+        printf("tmpCallbackStruct = %p\n", &tmpCallbackStruct);
+        UIHRegisterMenu(state, &menuCallbacks, &tmpCallbackStruct);
+
 
         UIHShowWindow(state, 1);
         UIHErr();

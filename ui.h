@@ -11,26 +11,24 @@
 
 #include "string.h"
 #include "stdlib.h"
-#include "locale.h"
 
 #include "windows.h"
 #include "mbstring.h"
 #include "Commctrl.h"
 #include "locale.h"
-
-
-
-
+#include "richedit.h"
 
 /// utf tests
 #define UIH_HelloWorld_Hanzi "世界你好"
 #define UIH_HelloWorld_Kanji "こんにちは、世界"
 #define UIH_HelloWorld_English "Hello world"
 
-#define UIH_NUM_FONTS           10
-#define UIH_NUM_CONTROLS        100
-#define UIH_PROPNAME_STATE      L"uihprop1"
-#define UIH_PROPNAME_CALLBACK   L"uihcallback1"
+#define UIH_NUM_FONTS               10
+#define UIH_NUM_CONTROLS            100
+#define UIH_CONTROL_UUID_RANGE      1000
+#define UIH_PROPNAME_STATE          L"uihprop1"
+#define UIH_PROPNAME_CALLBACK       L"uihcallback1"
+#define UIH_PROPNAME_MENUCALLBACK   L"uihcallback2"
 
 typedef struct UIH_CONTROL {
     long uuid;
@@ -50,12 +48,20 @@ typedef struct UIH_STATE {
     long nextUUID;
     int numberOfControls;
     int numberOfFonts;
+    int numberOfMenuItems;
     wchar_t *hwndTitle;
     wchar_t *windowClassname;
+    void *menuCallback;
     HWND hwnd;
     HFONT fonts[UIH_NUM_FONTS];
     UIH_CONTROL controls[UIH_NUM_CONTROLS];
 } UIH_STATE;
+
+enum UIH_MENU_ITEMS {
+    UIH_MENU_OPEN = 1000,
+    UIH_MENU_SAVE,
+    UIH_MENU_QUIT
+};
 
 UIH_STATE *UIHMakeState() {
     UIH_STATE *state = (UIH_STATE*) malloc(sizeof(UIH_STATE));
@@ -99,18 +105,64 @@ LRESULT CALLBACK windowProcCallback(HWND hwnd, UINT umsg, WPARAM wparam, LPARAM 
         state = (UIH_STATE *) handle;
         switch (umsg) {
             case WM_COMMAND: {
-                for(int i = 0; i < state->numberOfControls; i++) {
-                    UIH_CONTROL control = state->controls[i];
-                    if (id == control.uuid) {
-                        if (control.fnCallback != NULL) {
-                            HANDLE tHandle = GetPropW(control.hwnd, UIH_PROPNAME_CALLBACK);
-                            void (*UIH_fnCallback)(UIH_STATE*, void*) = control.fnCallback;
-                            UIH_fnCallback(state, tHandle);
+
+                if (id < UIH_CONTROL_UUID_RANGE + UIH_NUM_CONTROLS) {
+                    printf("id = %i\n", id);
+                    for(int i = 0; i < state->numberOfControls; i++) {
+                        UIH_CONTROL control = state->controls[i];
+                        if (id == control.uuid) {
+                            if (control.fnCallback != NULL) {
+                                HANDLE tHandle = GetPropW(control.hwnd, UIH_PROPNAME_CALLBACK);
+                                void (*UIH_fnCallback)(UIH_STATE*, void*) = control.fnCallback;
+                                UIH_fnCallback(state, tHandle);
+                            }
+                            printf("innerbreak\n");
+                            break;
                         }
+                    }
+                    printf("outterbreak\n");
+                    break;
+                }
+                else {
+                    printf("id = %i\n", id);
+                    if (state->menuCallback != NULL) {
+                        HANDLE fHandle = GetPropW(state->hwnd, UIH_PROPNAME_MENUCALLBACK);
+                        void (*UIH_MenuCallback)(UIH_STATE *, int, void *) = state->menuCallback;
+                        printf("fhandle = %p", fHandle);
+                        UIH_MenuCallback(state, id, fHandle);
+                        //break;
+                    }
+                    break;
+                }
+                //switch (id) {
+                    /*case UIH_MENU_QUIT: {
+                        printf("clicked QUIT thing\n");
                         break;
                     }
-                }
-                break;
+                    case UIH_MENU_OPEN: {
+                        printf("clicked OPEN thing\n");
+                        break;
+                    }
+                    case UIH_MENU_SAVE: {
+                        printf("clicked SAVE thing\n");
+                        break;
+                    }*/
+                    /*default: {
+                        printf("id = %i\n", id);
+                        for(int i = 0; i < state->numberOfControls; i++) {
+                            UIH_CONTROL control = state->controls[i];
+                            if (id == control.uuid) {
+                                if (control.fnCallback != NULL) {
+                                    HANDLE tHandle = GetPropW(control.hwnd, UIH_PROPNAME_CALLBACK);
+                                    void (*UIH_fnCallback)(UIH_STATE*, void*) = control.fnCallback;
+                                    UIH_fnCallback(state, tHandle);
+                                }
+                                break;
+                            }
+                        }
+                        break;
+                    }*/
+                //}
             }
             case WM_SIZE: {
                 break;
@@ -163,7 +215,7 @@ void UIHCreateWindow(UIH_STATE *state, char *title, int x, int y, int width, int
     sprintf(tmpClassname, "%p%s", state, title);
     MultiByteToWideChar(CP_UTF8, 0, tmpClassname, -1, state->windowClassname, classnameSize);
     MultiByteToWideChar(CP_UTF8, 0, title, -1, state->hwndTitle, titleSize);
-
+    UIHErr();
     HINSTANCE hInstance = GetModuleHandleW(NULL);
 
     WNDCLASSEXW window;
@@ -181,14 +233,16 @@ void UIHCreateWindow(UIH_STATE *state, char *title, int x, int y, int width, int
     window.hIconSm = NULL;
 
     RegisterClassExW(&window);
+    UIHErr();
 
-    HWND hwnd = CreateWindowExW(NULL, state->windowClassname, state->hwndTitle, WS_TILEDWINDOW, x, y, width, height, NULL, NULL, hInstance, NULL);
-    state->hwnd = hwnd;
+    state->hwnd = CreateWindowExW(NULL, state->windowClassname, state->hwndTitle, WS_TILEDWINDOW, x, y, width, height, NULL, NULL, hInstance, NULL);
 
     wchar_t tmpName[32];
     sprintf(tmpName, "%i", state->hwnd);
 
     SetPropW(state->hwnd, UIH_PROPNAME_STATE, state);
+
+    UIHErr();
 }
 
 void UIHShowWindow(UIH_STATE *state, int hidden) {
@@ -203,7 +257,7 @@ void UIHShowWindow(UIH_STATE *state, int hidden) {
 /** \brief Private function which allocates memory and converts char to widechar
  *
  * \param UIH_STATE pointer
- * \param array of chracters
+ * \param array of characters
  * \return state->controls index of newly created control
  *
  */
@@ -221,6 +275,31 @@ static int UIHMakeControl(UIH_STATE *state, char *text) {
         return -1;
     }
 }
+
+long UIHGetNextMenuUUID(UIH_STATE *state) {
+    return UIH_CONTROL_UUID_RANGE + UIH_NUM_CONTROLS + 1 + (state->numberOfMenuItems++);
+}
+
+void UIHRegisterMenu(UIH_STATE *state, void *callback, void *data) {
+    state->menuCallback = callback;
+    SetPropW(state->hwnd, UIH_PROPNAME_MENUCALLBACK, data);
+}
+
+
+
+    /*HMENU child = CreateMenu();
+    HMENU parent = CreateMenu();
+
+    AppendMenuW(parent, MF_POPUP, child, L"File");
+    AppendMenuW(child, MF_STRING, UIH_MENU_OPEN, L"Open");
+    AppendMenuW(child, MF_STRING, UIH_MENU_SAVE, L"Save");
+    AppendMenuW(child, MF_SEPARATOR, 0, NULL);
+    AppendMenuW(child, MF_STRING, UIH_MENU_QUIT, L"Quit");
+
+    SetMenu(state->hwnd, parent);
+
+}*/
+
 
 UIH_CONTROL *UIHAddLabel(UIH_STATE *state, char *text, int fontid, int x, int y, int w, int h) {
     int index  = UIHMakeControl(state, text);
@@ -285,7 +364,7 @@ void UIHInit(UIH_STATE *state) {
     setlocale(LC_ALL, "");
 
     UIHLoadFont(state, "Microsoft Sans Serif"); // make state->fonts[0] the default font
-    state->nextUUID = 1000;
+    state->nextUUID = UIH_CONTROL_UUID_RANGE;
 
     INITCOMMONCONTROLSEX c;
     c.dwICC = ICC_TAB_CLASSES;
@@ -309,6 +388,7 @@ void UIHClean(UIH_STATE *state) {
     free(state->windowClassname);
 
     RemovePropW(state->hwnd, UIH_PROPNAME_STATE);
+    RemovePropW(state->hwnd, UIH_PROPNAME_MENUCALLBACK);
 
 }
 
