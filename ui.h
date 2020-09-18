@@ -57,11 +57,7 @@ typedef struct UIH_STATE {
     UIH_CONTROL controls[UIH_NUM_CONTROLS];
 } UIH_STATE;
 
-enum UIH_MENU_ITEMS {
-    UIH_MENU_OPEN = 1000,
-    UIH_MENU_SAVE,
-    UIH_MENU_QUIT
-};
+
 
 UIH_STATE *UIHMakeState() {
     UIH_STATE *state = (UIH_STATE*) malloc(sizeof(UIH_STATE));
@@ -105,7 +101,6 @@ LRESULT CALLBACK windowProcCallback(HWND hwnd, UINT umsg, WPARAM wparam, LPARAM 
         state = (UIH_STATE *) handle;
         switch (umsg) {
             case WM_COMMAND: {
-
                 if (id < UIH_CONTROL_UUID_RANGE + UIH_NUM_CONTROLS) {
                     printf("id = %i\n", id);
                     for(int i = 0; i < state->numberOfControls; i++) {
@@ -113,8 +108,8 @@ LRESULT CALLBACK windowProcCallback(HWND hwnd, UINT umsg, WPARAM wparam, LPARAM 
                         if (id == control.uuid) {
                             if (control.fnCallback != NULL) {
                                 HANDLE tHandle = GetPropW(control.hwnd, UIH_PROPNAME_CALLBACK);
-                                void (*UIH_fnCallback)(UIH_STATE*, void*) = control.fnCallback;
-                                UIH_fnCallback(state, tHandle);
+                                void (*buttonCallback)(UIH_STATE*, void*) = control.fnCallback;
+                                buttonCallback(state, tHandle);
                             }
                             printf("innerbreak\n");
                             break;
@@ -127,42 +122,12 @@ LRESULT CALLBACK windowProcCallback(HWND hwnd, UINT umsg, WPARAM wparam, LPARAM 
                     printf("id = %i\n", id);
                     if (state->menuCallback != NULL) {
                         HANDLE fHandle = GetPropW(state->hwnd, UIH_PROPNAME_MENUCALLBACK);
-                        void (*UIH_MenuCallback)(UIH_STATE *, int, void *) = state->menuCallback;
+                        void (*menuCallback)(UIH_STATE *, int, void *) = state->menuCallback;
                         printf("fhandle = %p", fHandle);
-                        UIH_MenuCallback(state, id, fHandle);
-                        //break;
+                        menuCallback(state, id, fHandle);
                     }
                     break;
                 }
-                //switch (id) {
-                    /*case UIH_MENU_QUIT: {
-                        printf("clicked QUIT thing\n");
-                        break;
-                    }
-                    case UIH_MENU_OPEN: {
-                        printf("clicked OPEN thing\n");
-                        break;
-                    }
-                    case UIH_MENU_SAVE: {
-                        printf("clicked SAVE thing\n");
-                        break;
-                    }*/
-                    /*default: {
-                        printf("id = %i\n", id);
-                        for(int i = 0; i < state->numberOfControls; i++) {
-                            UIH_CONTROL control = state->controls[i];
-                            if (id == control.uuid) {
-                                if (control.fnCallback != NULL) {
-                                    HANDLE tHandle = GetPropW(control.hwnd, UIH_PROPNAME_CALLBACK);
-                                    void (*UIH_fnCallback)(UIH_STATE*, void*) = control.fnCallback;
-                                    UIH_fnCallback(state, tHandle);
-                                }
-                                break;
-                            }
-                        }
-                        break;
-                    }*/
-                //}
             }
             case WM_SIZE: {
                 break;
@@ -171,9 +136,8 @@ LRESULT CALLBACK windowProcCallback(HWND hwnd, UINT umsg, WPARAM wparam, LPARAM 
                 break;
             }
             case WM_CLOSE: {
-                printf("close");
+                printf("closeasdasdasd");
                 UIHClean(state);
-
                 break;
             }
             default: {
@@ -188,6 +152,13 @@ LRESULT CALLBACK windowProcCallback(HWND hwnd, UINT umsg, WPARAM wparam, LPARAM 
     return DefWindowProcW(hwnd, umsg, wparam, lparam);
 }
 
+char *UIHWideToChar(char *text) {
+
+        int textSize = WideCharToMultiByte(CP_UTF8, 0, text, -1, NULL, 0, NULL, NULL);
+        char *buffer = malloc(sizeof(char) * (textSize + 1));
+        WideCharToMultiByte(CP_UTF8, 0, text, -1, buffer, textSize, NULL, NULL);
+        return buffer;
+}
 
 void UIHSetString(UIH_CONTROL *control, char *text) {
     int textSize = MultiByteToWideChar(CP_UTF8, 0, text, -1, NULL, 0);

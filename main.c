@@ -17,6 +17,7 @@
 #include "mbstring.h"
 #include "Commctrl.h"
 #include "locale.h"
+#include "commdlg.h"
 
 #include "ui.h"
 #include "util.h"
@@ -31,20 +32,21 @@ void buttonFunction(UIH_STATE *state, void *data) {
 
         //char editText[] = "heck世界你好こんにちは、世界feck";
         wchar_t *editText = UIHGetString(control);
-        int editTextSize = wcslen(editText) * sizeof(wchar_t);
+        //int editTextSize = wcslen(editText) * sizeof(wchar_t);
 
-        printf("sizeof editText = %i\n", editTextSize);
-        printf("sizeof wchar_t = %i\n", sizeof(wchar_t));
+        //printf("sizeof editText = %i\n", editTextSize);
+        //printf("sizeof wchar_t = %i\n", sizeof(wchar_t));
 
 
-        int editTextSize2 = WideCharToMultiByte(CP_UTF8, 0, editText, -1, NULL, 0, NULL, NULL);
-        printf("sizeof editTextSize2 = %i\n", editTextSize2);
+        int editTextSize = WideCharToMultiByte(CP_UTF8, 0, editText, -1, NULL, 0, NULL, NULL);
+        //printf("sizeof editTextSize2 = %i\n", editTextSize2);
 
-        char *buffer = malloc(sizeof(char) * (editTextSize2 + 1));
-        WideCharToMultiByte(CP_UTF8, 0, editText, -1, buffer, editTextSize2, NULL, NULL);
+        //char *buffer = malloc(sizeof(char) * (editTextSize2 + 1));
+        //WideCharToMultiByte(CP_UTF8, 0, editText, -1, buffer, editTextSize2, NULL, NULL);
 
+        char *buffer = UIHWideToChar(editText);
         FILE *file = fopen("myfilename.txt", "w+");//,ccs=UTF-8");//ccs=UTF-16LE");
-        fwrite(buffer, sizeof(char), editTextSize2 - sizeof(char), file);
+        fwrite(buffer, sizeof(char), editTextSize - sizeof(char), file);
         fclose(file);
         free(editText);
         free(buffer);
@@ -71,13 +73,43 @@ void buttonFunction2(UIH_STATE *state, void *data) {
     printf("asdasd\n");
 }
 
-void menuCallbacks(UIH_STATE *state, int menuId, void *editControl) {
-    //printf("bleh?\n");
-    printf("state = %p\nmenuId = %i\neditControl = %p\n", state, menuId, editControl);
+void menuCallbacks(UIH_STATE *state, int menuId, void *data) {
+
+    switch(menuId) {
+        //case UIH_MENU_OPEN: {
+        //  printf("asdasd\n");
+        default: {
+            printf("asddcxxx");
+            break;
+        }
+    }
+
+    /*OPENFILENAMEW openfile = {0}
+    char filename[512] = {0};
+
+    openfile.lStructSize = sizeof(OPENFILENAMEW);
+	openfile.hwndOwner = NULL;
+	openfile.lpstrFile = filename;
+	openfile.nMaxFile = sizeof(filename);
+	openfile.lpstrFilter = L"All files\0*.*\0Text files\0*.TXT\0";
+	openfile.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+
+
+    if (GetOpenFileNameW(&openfile)) {
+        char *buffer = UIHWideToChar(filename);
+        printf("buffer = %s\n", buffer);
+        free(buffer);
+    }
+
+
+    UIHErr();*/
+
 }
 
-int main(int argc, char* args[]) {
 
+
+int main(int argc, char* args[]) {
+    //menuCallbacks(NULL, NULL, NULL);
     UIH_STATE *state = UIHMakeState();
     if (state != NULL) {
         printf("state pointer address in %s() = %p\n", __FUNCTION__, state);
@@ -87,6 +119,12 @@ int main(int argc, char* args[]) {
 
         HMENU child = CreateMenu();
         HMENU parent = CreateMenu();
+
+        enum UIH_MENU_ITEMS {
+            UIH_MENU_OPEN = UIHGetNextMenuUUID(state),
+            UIH_MENU_SAVE,
+            UIH_MENU_QUIT
+        };
 
         AppendMenuW(parent, MF_POPUP, child, L"File");
         AppendMenuW(child, MF_STRING, UIHGetNextMenuUUID(state), L"&Open");
@@ -111,20 +149,21 @@ int main(int argc, char* args[]) {
         UIHShowWindow(state, 1);
         UIHErr();
 
+        while(1) {
+            MSG msg;
+            if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+                TranslateMessage(&msg);
+                DispatchMessage(&msg);
+            }
+        }
+
     }
     else {
-        //UIHDisplayError();
         UIHDisplayError("Feckin' memory didn't allocate yo", __FUNCTION__, 1, "Error");
         return -1;
     }
 
-    while(1) {
-        MSG msg;
-        if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        }
-    }
+
     //UIClean();
     return 0;
 }
