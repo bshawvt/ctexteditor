@@ -17,6 +17,7 @@
 #include "Commctrl.h"
 #include "locale.h"
 #include "richedit.h"
+#include "commdlg.h"
 
 /// utf tests
 #define UIH_HelloWorld_Hanzi "世界你好"
@@ -25,7 +26,10 @@
 
 #define UIH_NUM_FONTS               10
 #define UIH_NUM_CONTROLS            100
+#define UIH_NUM_STATE_DATUMS        16
+#define UIH_NUM_CALLBACK_DATUMS     100
 #define UIH_CONTROL_UUID_RANGE      1000
+#define UIH_MENU_UUID_RANGE         10000
 #define UIH_PROPNAME_STATE          L"uihprop1"
 #define UIH_PROPNAME_CALLBACK       L"uihcallback1"
 #define UIH_PROPNAME_MENUCALLBACK   L"uihcallback2"
@@ -34,24 +38,25 @@ typedef struct UIH_CONTROL {
     long uuid;
     HWND hwnd;
     wchar_t *text;
-    void *fnCallback;
+    int matchSize;
+    void *fnControlCallback;
+    void *fnResizeCallback;
 } UIH_CONTROL;
 
 typedef struct UIH_CALLBACK {
-    void *data1;
-    void *data2;
-    void *data3;
-    void *data4;
+    void *datums[UIH_NUM_CALLBACK_DATUMS];
 } UIH_CALLBACK;
 
 typedef struct UIH_STATE {
+    int isRunning; // if main state then 0 tells main loop to stop
     long nextUUID;
     int numberOfControls;
     int numberOfFonts;
     int numberOfMenuItems;
     wchar_t *hwndTitle;
     wchar_t *windowClassname;
-    void *menuCallback;
+    void **datums[UIH_NUM_STATE_DATUMS]; // holds misc data like current open filename
+    void *fnMenuCallback;
     HWND hwnd;
     HFONT fonts[UIH_NUM_FONTS];
     UIH_CONTROL controls[UIH_NUM_CONTROLS];
@@ -91,6 +96,38 @@ void UIHDisplayError(char *body, char *gcc_function_macro, int showMessageBox, c
         MessageBoxW(NULL, tmpBodyText, tmpTitleText, 0);
     }
 };
+void UIHDoMenuCallbackFromId(UIH_STATE *state, int id) {
+    printf("id = %i\n", id);
+    if (state->fnMenuCallback != NULL) {
+        HANDLE fHandle = GetPropW(state->hwnd, UIH_PROPNAME_MENUCALLBACK);
+        void (*fnMenuCallback)(UIH_STATE *, int, void *) = state->fnMenuCallback;
+        fnMenuCallback(state, id, fHandle);
+    }
+}
+void UIHDoControlCallbackFromId(UIH_STATE *state, int id) {
+    printf("id = %i\n", id);
+    for(int i = 0; i < state->numberOfControls; i++) {
+        UIH_CONTROL control = state->controls[i];
+        if (id == control.uuid) {
+            if (control.fnControlCallback != NULL) {
+                HANDLE tHandle = GetPropW(control.hwnd, UIH_PROPNAME_CALLBACK);
+                void (*fnControlCallback)(UIH_STATE*, void*) = control.fnControlCallback;
+                fnControlCallback(state, tHandle);
+            }
+            break;
+        }
+    }
+}
+
+void UIHDoControlResizeCallback(UIH_STATE *state) {
+    for(int i = 0; i < UIH_NUM_CONTROLS; i++) {
+        UIH_CONTROL control = state->controls[i];
+        if (control.fnResizeCallback != NULL) {
+            void (*fnResizeCallback)(UIH_STATE*) = control.fnResizeCallback;
+            fnResizeCallback(state);
+        }
+    }
+}
 
 LRESULT CALLBACK windowProcCallback(HWND hwnd, UINT umsg, WPARAM wparam, LPARAM lparam) {
     int id = (unsigned short) wparam;
@@ -102,37 +139,20 @@ LRESULT CALLBACK windowProcCallback(HWND hwnd, UINT umsg, WPARAM wparam, LPARAM 
         switch (umsg) {
             case WM_COMMAND: {
                 if (id < UIH_CONTROL_UUID_RANGE + UIH_NUM_CONTROLS) {
-                    printf("id = %i\n", id);
-                    for(int i = 0; i < state->numberOfControls; i++) {
-                        UIH_CONTROL control = state->controls[i];
-                        if (id == control.uuid) {
-                            if (control.fnCallback != NULL) {
-                                HANDLE tHandle = GetPropW(control.hwnd, UIH_PROPNAME_CALLBACK);
-                                void (*buttonCallback)(UIH_STATE*, void*) = control.fnCallback;
-                                buttonCallback(state, tHandle);
-                            }
-                            printf("innerbreak\n");
-                            break;
-                        }
-                    }
-                    printf("outterbreak\n");
-                    break;
+                    UIHDoControlCallbackFromId(state, id);
                 }
                 else {
-                    printf("id = %i\n", id);
-                    if (state->menuCallback != NULL) {
-                        HANDLE fHandle = GetPropW(state->hwnd, UIH_PROPNAME_MENUCALLBACK);
-                        void (*menuCallback)(UIH_STATE *, int, void *) = state->menuCallback;
-                        printf("fhandle = %p", fHandle);
-                        menuCallback(state, id, fHandle);
-                    }
-                    break;
+                    UIHDoMenuCallbackFromId(state, id);
                 }
+                break;
             }
             case WM_SIZE: {
+                printf("size\n");
+                UIHDoControlResizeCallback(state);
                 break;
             }
             case WM_SIZING: {
+                printf("size2\n");
                 break;
             }
             case WM_CLOSE: {
@@ -153,17 +173,17 @@ LRESULT CALLBACK windowProcCallback(HWND hwnd, UINT umsg, WPARAM wparam, LPARAM 
 }
 
 char *UIHWideToChar(char *text) {
-
-        int textSize = WideCharToMultiByte(CP_UTF8, 0, text, -1, NULL, 0, NULL, NULL);
-        char *buffer = malloc(sizeof(char) * (textSize + 1));
-        WideCharToMultiByte(CP_UTF8, 0, text, -1, buffer, textSize, NULL, NULL);
-        return buffer;
+    int textSize = WideCharToMultiByte(CP_UTF8, 0, text, -1, NULL, 0, NULL, NULL);
+    char *buffer = malloc(sizeof(char) * (textSize + 1));
+    WideCharToMultiByte(CP_UTF8, 0, text, -1, buffer, textSize, NULL, NULL);
+    return buffer;
 }
 
 void UIHSetString(UIH_CONTROL *control, char *text) {
     int textSize = MultiByteToWideChar(CP_UTF8, 0, text, -1, NULL, 0);
     wchar_t *tmpBuffer = malloc(textSize * sizeof(wchar_t));
     MultiByteToWideChar(CP_UTF8, 0, text, -1, tmpBuffer, textSize);
+    printf("hwnd= %i\ncontrol addr = %p\n", control, control);
     SendMessageW(control->hwnd, WM_SETTEXT, 0, tmpBuffer);
     free(tmpBuffer);
 }
@@ -232,7 +252,7 @@ void UIHShowWindow(UIH_STATE *state, int hidden) {
  * \return state->controls index of newly created control
  *
  */
-static int UIHMakeControl(UIH_STATE *state, char *text) {
+int UIHMakeControl(UIH_STATE *state, char *text) {
     if (state->numberOfControls < UIH_NUM_CONTROLS) {
         int index = state->numberOfControls++;
         state->controls[index].uuid = ++state->nextUUID;
@@ -247,30 +267,10 @@ static int UIHMakeControl(UIH_STATE *state, char *text) {
     }
 }
 
-long UIHGetNextMenuUUID(UIH_STATE *state) {
-    return UIH_CONTROL_UUID_RANGE + UIH_NUM_CONTROLS + 1 + (state->numberOfMenuItems++);
-}
-
-void UIHRegisterMenu(UIH_STATE *state, void *callback, void *data) {
-    state->menuCallback = callback;
+void UIHRegisterMenuCallback(UIH_STATE *state, void *callback, void *data) {
+    state->fnMenuCallback = callback;
     SetPropW(state->hwnd, UIH_PROPNAME_MENUCALLBACK, data);
 }
-
-
-
-    /*HMENU child = CreateMenu();
-    HMENU parent = CreateMenu();
-
-    AppendMenuW(parent, MF_POPUP, child, L"File");
-    AppendMenuW(child, MF_STRING, UIH_MENU_OPEN, L"Open");
-    AppendMenuW(child, MF_STRING, UIH_MENU_SAVE, L"Save");
-    AppendMenuW(child, MF_SEPARATOR, 0, NULL);
-    AppendMenuW(child, MF_STRING, UIH_MENU_QUIT, L"Quit");
-
-    SetMenu(state->hwnd, parent);
-
-}*/
-
 
 UIH_CONTROL *UIHAddLabel(UIH_STATE *state, char *text, int fontid, int x, int y, int w, int h) {
     int index  = UIHMakeControl(state, text);
@@ -291,7 +291,7 @@ UIH_CONTROL *UIHAddButton(UIH_STATE *state, char *text, int fontid, int x, int y
     state->controls[index].hwnd = CreateWindowExW(NULL, L"BUTTON", state->controls[index].text, WS_VISIBLE | WS_CHILD, x, y, w, h, state->hwnd, (HMENU) state->controls[index].uuid, NULL, NULL);
 
     if (callback != NULL) {
-        state->controls[index].fnCallback = callback;
+        state->controls[index].fnControlCallback = callback;
         if (data != NULL) {
             SetPropW(state->controls[index].hwnd, UIH_PROPNAME_CALLBACK, data);
         }
@@ -354,13 +354,21 @@ void UIHClean(UIH_STATE *state) {
         RemovePropW(state->controls[i++].hwnd, UIH_PROPNAME_CALLBACK);
         free(state->controls[i++].text);
     }
-
-    free(state->hwndTitle);
-    free(state->windowClassname);
-
     RemovePropW(state->hwnd, UIH_PROPNAME_STATE);
     RemovePropW(state->hwnd, UIH_PROPNAME_MENUCALLBACK);
 
+    free(state->hwndTitle);
+    free(state->windowClassname);
+    state->isRunning = 0;
+
+}
+
+void UIHEventUpdate() {
+    MSG msg;
+    if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
 }
 
 
