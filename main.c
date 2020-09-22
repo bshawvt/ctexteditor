@@ -36,14 +36,12 @@ int main(int argc, char* args[]) {
         UIHInit(mainState);
         UIHCreateWindow(mainState, "Worlds Worst Text Editor™", 10, 10, 350, 200);
 
-        //UIH_CONTROL *label1 = UIHAddLabel(state, "世界你好\nこんにちは、世界\nHello World!!!?", 0, 10, 100, 150, 50);
+        UIH_CONTROL *label1 = UIHAddLabel(mainState, "世界你好\nこんにちは、世界\nHello World!!!?", 0, 10, 100, 150, 50);
         UIH_CONTROL *edit1 = UIHAddEdit(mainState, "heck世界你好こんにちは、世界feck", 0, 5, 5, 325, 80);
-
-        //(state, "基佬", 0, 100, 90, 125, 25, NULL, edit1);
-        //UIHAddButton(state, "poop", 0, 100, 120, 125, 25, &callbackTest, NULL);
 
         UIH_CALLBACK tmpCallbackStruct;
         tmpCallbackStruct.datums[0] = edit1;
+        tmpCallbackStruct.datums[1] = label1;
         UIHRegisterMenuCallback(mainState, &onMenuCallback, &tmpCallbackStruct);
 
         MakeTextEditorMenu(mainState);

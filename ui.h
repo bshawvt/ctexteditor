@@ -55,7 +55,7 @@ typedef struct UIH_STATE {
     int numberOfMenuItems;
     wchar_t *hwndTitle;
     wchar_t *windowClassname;
-    void **datums[UIH_NUM_STATE_DATUMS]; // holds misc data like current open filename
+    void *datums[UIH_NUM_STATE_DATUMS]; // holds misc data like current open filename
     void *fnMenuCallback;
     HWND hwnd;
     HFONT fonts[UIH_NUM_FONTS];
@@ -353,6 +353,10 @@ void UIHClean(UIH_STATE *state) {
     while (i < state->numberOfControls) {
         RemovePropW(state->controls[i++].hwnd, UIH_PROPNAME_CALLBACK);
         free(state->controls[i++].text);
+    }
+    i = 0;
+    while (i < UIH_NUM_STATE_DATUMS) {
+        free(state->datums[i++]);
     }
     RemovePropW(state->hwnd, UIH_PROPNAME_STATE);
     RemovePropW(state->hwnd, UIH_PROPNAME_MENUCALLBACK);

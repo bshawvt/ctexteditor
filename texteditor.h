@@ -22,6 +22,7 @@
 enum TEXTEDITOR_MENU {
     TEXTEDITOR_MENU_OPEN = UIH_MENU_UUID_RANGE,
     TEXTEDITOR_MENU_SAVE,
+    TEXTEDITOR_MENU_SAVEAS,
     TEXTEDITOR_MENU_QUIT
 };
 
@@ -30,12 +31,10 @@ void callbackTest(UIH_STATE *state, void *data) {
 }
 
 void doFileSave(UIH_STATE *state, UIH_CONTROL *editControl) {
-    /* todo: broken
-        new file
-    */
-    //UIH_CONTROL *control = (UIH_CONTROL*) data;
     if (editControl!=NULL) {
-        if (state->datums[0] == NULL) {
+        printf("saveas datums[0] = %s @ %p\n", state->datums[0], state->datums[0]);
+        if (state->datums[0]==NULL) {
+            printf("I SHOULD BE HERE REEEE\N");
             OPENFILENAMEW openfile = {0};
             wchar_t filename[512] = {0};
 
@@ -49,6 +48,8 @@ void doFileSave(UIH_STATE *state, UIH_CONTROL *editControl) {
             if (GetSaveFileNameW(&openfile)) {
                 free(state->datums[0]);
                 state->datums[0] = malloc(sizeof(filename));
+                //memcpy(state->datums[0], filename, sizeof(filename));
+                //sprintf(state->datums[0], "%s", filename);
                 memcpy(state->datums[0], filename, sizeof(filename));
             }
         }
@@ -79,9 +80,7 @@ void doFileOpen(UIH_STATE *state, UIH_CONTROL *editControl) {
     if (GetOpenFileNameW(&openfile)) {
         char *buffer = UIHWideToChar(filename);
         FILE *file = _wfopen(filename, L"a+");//fopen(buffer, "a+");//("myfilename.txt", "a+");
-        printf("t1\n");
         if (file!=NULL) {
-            printf("t2\n");
             fseek(file, 0, SEEK_END);
             long size = ftell(file);
             fseek(file, 0, SEEK_SET);
@@ -89,15 +88,15 @@ void doFileOpen(UIH_STATE *state, UIH_CONTROL *editControl) {
             size_t r = fread(contentBuffer, sizeof(char), size, file);
             contentBuffer[size] = '\0';
 
-            //UIH_CONTROL *control = (UIH_CONTROL*) data;
             if (editControl!=NULL) {
-                printf("t3\n");
                 UIHSetString(editControl, contentBuffer);
             }
+            // keep a copy of the filename to use as the filename in doFileSave
             free(state->datums[0]);
             state->datums[0] = malloc(sizeof(filename));
             memcpy(state->datums[0], filename, sizeof(filename));
-            printf("%s\n", state->datums[0]);
+            //sprintf(state->datums[0], "%s", filename);
+
             fclose(file);
             free(contentBuffer);
             free(buffer);
@@ -110,32 +109,34 @@ void onMenuCallback(UIH_STATE *state, int menuId, void *data) {
     UIH_CONTROL *control = NULL;
     if (data != NULL) {
         control = (UIH_CONTROL*) tmpStruct->datums[0];
+        printf("address for 0 = %p\naddress for 1 = %p\n", tmpStruct->datums[0], tmpStruct->datums[1]);
     }
     switch(menuId) {
         case TEXTEDITOR_MENU_OPEN: {
-          //if (data!=NULL) {
-            //UIH_CALLBACK *tmpStruct = (UIH_CALLBACK*) data;
-            //UIH_CONTROL *control = (UIH_CONTROL*) tmpStruct->data[0];
-
             if (control!=NULL) {
-                printf("onopen\n");
                 doFileOpen(state, control);
             }
-          //}
           break;
         }
         case TEXTEDITOR_MENU_SAVE: {
-            //UIH_CALLBACK *tmpStruct = (UIH_CALLBACK*) data;
-            //UIH_CONTROL *control = (UIH_CONTROL*) tmpStruct->data[0];
             if (control != NULL) {
-                //printf("am i here\n");
-                //printf("onsave filename = %s\n", state->datums[0]);
+                doFileSave(state, control);
+            }
+            break;
+        }
+        case TEXTEDITOR_MENU_SAVEAS: {
+            if (control != NULL) {
+                free(state->datums[0]);
+                state->datums[0] = NULL;
+                printf("menu callback state-datums[0] = %s @ %p\n", state->datums[0], state->datums[0]);
+                //memcpy(state->datums[0], NULL, 1);
+
                 doFileSave(state, control);
             }
             break;
         }
         case TEXTEDITOR_MENU_QUIT: {
-
+            SendMessageW(state->hwnd, WM_CLOSE, 0, 0);
             break;
         }
         default: {
@@ -157,6 +158,7 @@ void MakeTextEditorMenu(UIH_STATE *state) {
     AppendMenuW(parent, MF_POPUP, child, L"File");
     AppendMenuW(child, MF_STRING, TEXTEDITOR_MENU_OPEN, L"&Open");
     AppendMenuW(child, MF_STRING, TEXTEDITOR_MENU_SAVE, L"&Save");
+    AppendMenuW(child, MF_STRING, TEXTEDITOR_MENU_SAVEAS, L"&Save As");
     AppendMenuW(child, MF_SEPARATOR, 0, NULL);
     AppendMenuW(child, MF_STRING, TEXTEDITOR_MENU_QUIT, L"&Quit");
 
