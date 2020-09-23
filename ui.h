@@ -34,11 +34,19 @@
 #define UIH_PROPNAME_CALLBACK       L"uihcallback1"
 #define UIH_PROPNAME_MENUCALLBACK   L"uihcallback2"
 
+typedef struct UIH_CONTROL_RECT {
+    int x;
+    int y;
+    int width;
+    int height;
+} UIH_CONTROL_RECT;
+
 typedef struct UIH_CONTROL {
     long uuid;
     HWND hwnd;
     wchar_t *text;
     int matchSize;
+    UIH_CONTROL_RECT rect;
     void *fnControlCallback;
     void *fnResizeCallback;
 } UIH_CONTROL;
@@ -55,6 +63,7 @@ typedef struct UIH_STATE {
     int numberOfMenuItems;
     wchar_t *hwndTitle;
     wchar_t *windowClassname;
+    HACCEL accelTable;
     void *datums[UIH_NUM_STATE_DATUMS]; // holds misc data like current open filename
     void *fnMenuCallback;
     HWND hwnd;
@@ -71,6 +80,7 @@ UIH_STATE *UIHMakeState() {
         return NULL;
     }
     *state = (UIH_STATE) {0};
+    state->accelTable = NULL;
     return state;
 }
 
@@ -120,13 +130,20 @@ void UIHDoControlCallbackFromId(UIH_STATE *state, int id) {
 }
 
 void UIHDoControlResizeCallback(UIH_STATE *state) {
+    UIH_CONTROL_RECT rect = {0};
+    RECT *tmpRect = malloc(sizeof(RECT));
+    GetWindowRect(state->hwnd, tmpRect);
+    rect.width = tmpRect->right - tmpRect->left;
+    rect.height = tmpRect->bottom - tmpRect->top;
     for(int i = 0; i < UIH_NUM_CONTROLS; i++) {
-        UIH_CONTROL control = state->controls[i];
-        if (control.fnResizeCallback != NULL) {
-            void (*fnResizeCallback)(UIH_STATE*) = control.fnResizeCallback;
-            fnResizeCallback(state);
+        UIH_CONTROL *control = &state->controls[i];
+        if (control->fnResizeCallback != NULL) {
+            printf("UIHDoControlResizeCallback control addr = %p\n", control);
+            void (*fnResizeCallback)(UIH_STATE*, UIH_CONTROL*, UIH_CONTROL_RECT*) = control->fnResizeCallback;
+            fnResizeCallback(state, control, &rect);
         }
     }
+    free(tmpRect);
 }
 
 LRESULT CALLBACK windowProcCallback(HWND hwnd, UINT umsg, WPARAM wparam, LPARAM lparam) {
@@ -245,20 +262,19 @@ void UIHShowWindow(UIH_STATE *state, int hidden) {
     UpdateWindow(state->hwnd);
 };
 
-/** \brief Private function which allocates memory and converts char to widechar
- *
- * \param UIH_STATE pointer
- * \param array of characters
- * \return state->controls index of newly created control
- *
- */
-int UIHMakeControl(UIH_STATE *state, char *text) {
+int UIHMakeControl(UIH_STATE *state, char *text, int x, int y, int width, int height) {
     if (state->numberOfControls < UIH_NUM_CONTROLS) {
         int index = state->numberOfControls++;
         state->controls[index].uuid = ++state->nextUUID;
         int textSize = MultiByteToWideChar(CP_UTF8, 0, text, -1, NULL, 0);
         state->controls[index].text = malloc(sizeof(wchar_t) * (textSize + sizeof(wchar_t)));
         MultiByteToWideChar(CP_UTF8, 0, text, -1, state->controls[index].text, textSize);
+
+        state->controls[index].rect.x = x;
+        state->controls[index].rect.y = y;
+        state->controls[index].rect.width = width;
+        state->controls[index].rect.height = height;
+
         return index;
     }
     else {
@@ -273,7 +289,7 @@ void UIHRegisterMenuCallback(UIH_STATE *state, void *callback, void *data) {
 }
 
 UIH_CONTROL *UIHAddLabel(UIH_STATE *state, char *text, int fontid, int x, int y, int w, int h) {
-    int index  = UIHMakeControl(state, text);
+    int index  = UIHMakeControl(state, text, x, y, w, h);
 
     printf("%s: uuid = %i\n", __FUNCTION__, state->controls[index].uuid);
     state->controls[index].hwnd = CreateWindowExW(NULL, L"STATIC", state->controls[index].text, WS_VISIBLE | WS_CHILD, x, y, w, h, state->hwnd, (HMENU) state->controls[index].uuid, NULL, NULL);
@@ -285,8 +301,7 @@ UIH_CONTROL *UIHAddLabel(UIH_STATE *state, char *text, int fontid, int x, int y,
 }
 
 UIH_CONTROL *UIHAddButton(UIH_STATE *state, char *text, int fontid, int x, int y, int w, int h, void* callback, void* data) {
-    int index  = UIHMakeControl(state, text);
-
+    int index  = UIHMakeControl(state, text, x, y, w, h);
     printf("%s: uuid = %i\n", __FUNCTION__, state->controls[index].uuid);
     state->controls[index].hwnd = CreateWindowExW(NULL, L"BUTTON", state->controls[index].text, WS_VISIBLE | WS_CHILD, x, y, w, h, state->hwnd, (HMENU) state->controls[index].uuid, NULL, NULL);
 
@@ -305,7 +320,7 @@ UIH_CONTROL *UIHAddButton(UIH_STATE *state, char *text, int fontid, int x, int y
 }
 
 UIH_CONTROL *UIHAddEdit(UIH_STATE *state, char *text, int fontid, int x, int y, int w, int h) {
-    int index  = UIHMakeControl(state, text);
+    int index  = UIHMakeControl(state, text, x, y, w, h);
 
     printf("%s: uuid = %li\n", __FUNCTION__, state->controls[index].uuid);
     state->controls[index].hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", state->controls[index].text, ES_MULTILINE | ES_AUTOVSCROLL | WS_VISIBLE | WS_CHILD, x, y, w, h, state->hwnd, (HMENU) state->controls[index].uuid, NULL, NULL);
@@ -367,11 +382,20 @@ void UIHClean(UIH_STATE *state) {
 
 }
 
-void UIHEventUpdate() {
+void UIHEventUpdate(UIH_STATE *state) {
     MSG msg;
-    if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+    if (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE)) {
         TranslateMessage(&msg);
-        DispatchMessage(&msg);
+        DispatchMessageW(&msg);
+    }
+    MSG amsg;
+    if (state->accelTable != NULL) {
+        if (GetMessageW(&amsg, NULL, 0, 0)) {
+            if (!TranslateAcceleratorW(state->hwnd, state->accelTable, &amsg)) {
+                TranslateMessage(&amsg);
+                DispatchMessageW(&amsg);
+            }
+        }
     }
 }
 

@@ -26,8 +26,12 @@ enum TEXTEDITOR_MENU {
     TEXTEDITOR_MENU_QUIT
 };
 
-void callbackTest(UIH_STATE *state, void *data) {
-    printf("henlo\n");
+void editOnResizeCallback(UIH_STATE *state, UIH_CONTROL *control, UIH_CONTROL_RECT *rect) {
+    printf("editOnResizeCallback control = %p\n", control);
+    printf("%i\n", control->hwnd);
+    control->rect.width = rect->width - 28;
+    control->rect.height = rect->height - 70;
+    SetWindowPos(control->hwnd, HWND_TOP, 0, 0, control->rect.width, control->rect.height, SWP_NOMOVE);
 }
 
 void doFileSave(UIH_STATE *state, UIH_CONTROL *editControl) {
@@ -149,20 +153,26 @@ void onMenuCallback(UIH_STATE *state, int menuId, void *data) {
 
 }
 
-
 void MakeTextEditorMenu(UIH_STATE *state) {
 
     HMENU child = CreateMenu();
     HMENU parent = CreateMenu();
 
     AppendMenuW(parent, MF_POPUP, child, L"File");
-    AppendMenuW(child, MF_STRING, TEXTEDITOR_MENU_OPEN, L"&Open");
-    AppendMenuW(child, MF_STRING, TEXTEDITOR_MENU_SAVE, L"&Save");
-    AppendMenuW(child, MF_STRING, TEXTEDITOR_MENU_SAVEAS, L"&Save As");
+    AppendMenuW(child, MF_STRING, TEXTEDITOR_MENU_OPEN, L"&Open\tCtrl+O");
+    AppendMenuW(child, MF_STRING, TEXTEDITOR_MENU_SAVE, L"&Save\tCtrl+S");
+    AppendMenuW(child, MF_STRING, TEXTEDITOR_MENU_SAVEAS, L"Save As\tCtrl+Shift+S");
     AppendMenuW(child, MF_SEPARATOR, 0, NULL);
-    AppendMenuW(child, MF_STRING, TEXTEDITOR_MENU_QUIT, L"&Quit");
+    AppendMenuW(child, MF_STRING, TEXTEDITOR_MENU_QUIT, L"&Quit\tCtrl+Q");
 
     SetMenu(state->hwnd, parent);
+
+    ACCEL accels[1];
+    accels[0].fVirt = FCONTROL | FVIRTKEY;
+    accels[0].cmd = TEXTEDITOR_MENU_OPEN;
+    accels[0].key = 'O';
+    state->accelTable = CreateAcceleratorTableW(accels, 1);
+    UIHErr();
 
 }
 
