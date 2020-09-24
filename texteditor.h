@@ -13,6 +13,7 @@
 #include "Commctrl.h"
 #include "locale.h"
 #include "commdlg.h"
+#include "wchar.h"
 
 #include "ui.h"
 #include "util.h"
@@ -25,6 +26,28 @@ enum TEXTEDITOR_MENU {
     TEXTEDITOR_MENU_SAVEAS,
     TEXTEDITOR_MENU_QUIT
 };
+
+void editCallback(UIH_STATE *state, UIH_CONTROL *control, void *data) {
+    if (state->datums[0] != NULL && state->datums[1] == 0) {
+        state->datums[1] = 1;
+        printf("i am here\n");
+
+        wchar_t *tmpTitle = malloc(sizeof(wchar_t) * UIH_MAX_FILENAME_SIZE);
+        tmpTitle[0] = '\0';
+        int titleSize = wcslen(state->hwndTitle);
+        int filenameSize = wcslen(state->datums[0]);
+        int seperatorSize = wcslen(L" - ");
+        int asteriskSize = wcslen(L"*");
+        wcsncat(tmpTitle, state->hwndTitle, titleSize);
+        wcsncat(tmpTitle, L" - ", seperatorSize);
+        wcsncat(tmpTitle, state->datums[0], filenameSize);
+        wcsncat(tmpTitle, L"*", asteriskSize);
+        tmpTitle[titleSize + filenameSize + seperatorSize + asteriskSize] = '\0';
+        SetWindowTextW(state->hwnd, tmpTitle);
+        free(tmpTitle);
+
+    }
+}
 
 void editOnResizeCallback(UIH_STATE *state, UIH_CONTROL *control, UIH_CONTROL_RECT *rect) {
     printf("editOnResizeCallback control = %p\n", control);
@@ -40,7 +63,7 @@ void doFileSave(UIH_STATE *state, UIH_CONTROL *editControl) {
         if (state->datums[0]==NULL) {
             printf("I SHOULD BE HERE REEEE\N");
             OPENFILENAMEW openfile = {0};
-            wchar_t filename[512] = {0};
+            wchar_t filename[UIH_MAX_FILENAME_SIZE] = {0};
 
             openfile.lStructSize = sizeof(OPENFILENAMEW);
             openfile.hwndOwner = NULL;
@@ -51,21 +74,37 @@ void doFileSave(UIH_STATE *state, UIH_CONTROL *editControl) {
 
             if (GetSaveFileNameW(&openfile)) {
                 free(state->datums[0]);
-                state->datums[0] = malloc(sizeof(filename));
-                //memcpy(state->datums[0], filename, sizeof(filename));
-                //sprintf(state->datums[0], "%s", filename);
+                state->datums[0] = malloc(sizeof(wchar_t) * UIH_MAX_FILENAME_SIZE);
                 memcpy(state->datums[0], filename, sizeof(filename));
             }
+            else {
+                return;
+            }
         }
+
+        wchar_t *tmpTitle = malloc(sizeof(wchar_t) * UIH_MAX_FILENAME_SIZE);
+        tmpTitle[0] = '\0';
+        int titleSize = wcslen(state->hwndTitle);
+        int filenameSize = wcslen(state->datums[0]);
+        int seperatorSize = wcslen(L" - ");
+        wcsncat(tmpTitle, state->hwndTitle, titleSize);
+        wcsncat(tmpTitle, L" - ", seperatorSize);
+        wcsncat(tmpTitle, state->datums[0], filenameSize);
+        tmpTitle[titleSize + filenameSize + seperatorSize] = '\0';
+        SetWindowTextW(state->hwnd, tmpTitle);
+        free(tmpTitle);
 
         wchar_t *editText = UIHGetString(editControl);
         int editTextSize = WideCharToMultiByte(CP_UTF8, 0, editText, -1, NULL, 0, NULL, NULL);
         char *buffer = UIHWideToChar(editText);
-        FILE *file = _wfopen(state->datums[0], L"w+");//fopen("myfilename.txt", "w+");//,ccs=UTF-8");//ccs=UTF-16LE");
+
+        FILE *file = _wfopen(state->datums[0], L"w+");
         fwrite(buffer, sizeof(char), editTextSize - sizeof(char), file);
         fclose(file);
         free(editText);
         free(buffer);
+
+        state->datums[1] = 0;
     }
 }
 
@@ -83,7 +122,7 @@ void doFileOpen(UIH_STATE *state, UIH_CONTROL *editControl) {
 
     if (GetOpenFileNameW(&openfile)) {
         char *buffer = UIHWideToChar(filename);
-        FILE *file = _wfopen(filename, L"a+");//fopen(buffer, "a+");//("myfilename.txt", "a+");
+        FILE *file = _wfopen(filename, L"a+");
         if (file!=NULL) {
             fseek(file, 0, SEEK_END);
             long size = ftell(file);
@@ -97,9 +136,20 @@ void doFileOpen(UIH_STATE *state, UIH_CONTROL *editControl) {
             }
             // keep a copy of the filename to use as the filename in doFileSave
             free(state->datums[0]);
-            state->datums[0] = malloc(sizeof(filename));
+            state->datums[0] = malloc(sizeof(wchar_t) * UIH_MAX_FILENAME_SIZE);
             memcpy(state->datums[0], filename, sizeof(filename));
-            //sprintf(state->datums[0], "%s", filename);
+
+            wchar_t *tmpTitle = malloc(sizeof(wchar_t) * UIH_MAX_FILENAME_SIZE);
+            tmpTitle[0] = '\0';
+            int titleSize = wcslen(state->hwndTitle);
+            int filenameSize = wcslen(state->datums[0]);
+            int seperatorSize = wcslen(L" - ");
+            wcsncat(tmpTitle, state->hwndTitle, titleSize);
+            wcsncat(tmpTitle, L" - ", seperatorSize);
+            wcsncat(tmpTitle, state->datums[0], filenameSize);
+            tmpTitle[titleSize + filenameSize + seperatorSize] = '\0';
+            SetWindowTextW(state->hwnd, tmpTitle);
+            free(tmpTitle);
 
             fclose(file);
             free(contentBuffer);
@@ -167,11 +217,24 @@ void MakeTextEditorMenu(UIH_STATE *state) {
 
     SetMenu(state->hwnd, parent);
 
-    ACCEL accels[1];
+    ACCEL accels[4];
     accels[0].fVirt = FCONTROL | FVIRTKEY;
     accels[0].cmd = TEXTEDITOR_MENU_OPEN;
     accels[0].key = 'O';
-    state->accelTable = CreateAcceleratorTableW(accels, 1);
+
+    accels[1].fVirt = FCONTROL | FVIRTKEY;
+    accels[1].cmd = TEXTEDITOR_MENU_SAVE;
+    accels[1].key = 'S';
+
+    accels[2].fVirt = FCONTROL | FSHIFT | FVIRTKEY;
+    accels[2].cmd = TEXTEDITOR_MENU_SAVEAS;
+    accels[2].key = 'S';
+
+    accels[3].fVirt = FCONTROL | FVIRTKEY;
+    accels[3].cmd = TEXTEDITOR_MENU_QUIT;
+    accels[3].key = 'Q';
+
+    state->accelTable = CreateAcceleratorTableW(accels, 4);
     UIHErr();
 
 }

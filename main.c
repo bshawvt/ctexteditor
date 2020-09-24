@@ -32,13 +32,13 @@ int main(int argc, char* args[]) {
     //menuCallbacks(NULL, NULL, NULL);
     UIH_STATE *mainState = UIHMakeState();
     if (mainState != NULL) {
-        printf("state pointer address in %s() = %p\n", __FUNCTION__, mainState);
+
         UIHInit(mainState);
         UIHCreateWindow(mainState, "Worlds Worst Text Editor™", 10, 10, 350, 200);
 
-        //UIH_CONTROL *label1 = UIHAddLabel(mainState, "世界你好\nこんにちは、世界\nHello World!!!?", 0, 10, 100, 150, 50);
-        UIH_CONTROL *edit1 = UIHAddEdit(mainState, "heck世界你好こんにちは、世界feck", 0, 5, 5, 325, 80);
+        UIH_CONTROL *edit1 = UIHAddEdit(mainState, "", 0, 5, 5, 325, 80);
         edit1->fnResizeCallback = &editOnResizeCallback;
+        edit1->fnControlCallback = &editCallback;
         printf("edit1 = %p\n", edit1);
 
         UIH_CALLBACK tmpCallbackStruct;

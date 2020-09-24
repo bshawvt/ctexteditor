@@ -25,14 +25,15 @@
 #define UIH_HelloWorld_English "Hello world"
 
 #define UIH_NUM_FONTS               10
-#define UIH_NUM_CONTROLS            100
-#define UIH_NUM_STATE_DATUMS        16
-#define UIH_NUM_CALLBACK_DATUMS     100
+#define UIH_NUM_CONTROLS            10
+#define UIH_NUM_STATE_DATUMS        10
+#define UIH_NUM_CALLBACK_DATUMS     10
 #define UIH_CONTROL_UUID_RANGE      1000
 #define UIH_MENU_UUID_RANGE         10000
 #define UIH_PROPNAME_STATE          L"uihprop1"
 #define UIH_PROPNAME_CALLBACK       L"uihcallback1"
 #define UIH_PROPNAME_MENUCALLBACK   L"uihcallback2"
+#define UIH_MAX_FILENAME_SIZE       1024
 
 typedef struct UIH_CONTROL_RECT {
     int x;
@@ -45,7 +46,6 @@ typedef struct UIH_CONTROL {
     long uuid;
     HWND hwnd;
     wchar_t *text;
-    int matchSize;
     UIH_CONTROL_RECT rect;
     void *fnControlCallback;
     void *fnResizeCallback;
@@ -64,7 +64,7 @@ typedef struct UIH_STATE {
     wchar_t *hwndTitle;
     wchar_t *windowClassname;
     HACCEL accelTable;
-    void *datums[UIH_NUM_STATE_DATUMS]; // holds misc data like current open filename
+    void *datums[UIH_NUM_STATE_DATUMS]; // holds misc data like current open filenames
     void *fnMenuCallback;
     HWND hwnd;
     HFONT fonts[UIH_NUM_FONTS];
@@ -88,6 +88,15 @@ UIH_STATE *UIHMakeState() {
 int UIHErrorCallCount = 1;
 #define UIHErr() (printf("\n*****\n - GetLastError#%i = %i\n - in: %s\n - %s @ %i\n*****\n", UIHErrorCallCount++, (int) GetLastError(), __FUNCTION__, __FILE__, __LINE__));
 
+wchar_t *UIHCharToWide(char *text) {
+    int textSize = MultiByteToWideChar(CP_UTF8, 0, text, -1, NULL, 0);
+
+    wchar_t *wText = malloc(sizeof(wchar_t) * textSize);
+    sprintf(wText, "%s", text);
+
+    MultiByteToWideChar(CP_UTF8, 0, text, -1, wText, textSize);
+    return wText;
+}
 void UIHDisplayError(char *body, char *gcc_function_macro, int showMessageBox, char* title) {
     printf("Error in %s():\n %s\n", gcc_function_macro, body);
     if (showMessageBox) {
@@ -117,17 +126,18 @@ void UIHDoMenuCallbackFromId(UIH_STATE *state, int id) {
 void UIHDoControlCallbackFromId(UIH_STATE *state, int id) {
     printf("id = %i\n", id);
     for(int i = 0; i < state->numberOfControls; i++) {
-        UIH_CONTROL control = state->controls[i];
-        if (id == control.uuid) {
-            if (control.fnControlCallback != NULL) {
-                HANDLE tHandle = GetPropW(control.hwnd, UIH_PROPNAME_CALLBACK);
-                void (*fnControlCallback)(UIH_STATE*, void*) = control.fnControlCallback;
-                fnControlCallback(state, tHandle);
+        UIH_CONTROL *control = &state->controls[i];
+        if (id == control->uuid) {
+            if (control->fnControlCallback != NULL) {
+                HANDLE tHandle = GetPropW(control->hwnd, UIH_PROPNAME_CALLBACK);
+                void (*fnControlCallback)(UIH_STATE*, UIH_CONTROL*, void*) = control->fnControlCallback;
+                fnControlCallback(state, control, tHandle);
             }
             break;
         }
     }
 }
+
 
 void UIHDoControlResizeCallback(UIH_STATE *state) {
     UIH_CONTROL_RECT rect = {0};
@@ -378,6 +388,7 @@ void UIHClean(UIH_STATE *state) {
 
     free(state->hwndTitle);
     free(state->windowClassname);
+    DestroyAcceleratorTable(state->accelTable);
     state->isRunning = 0;
 
 }
@@ -385,20 +396,11 @@ void UIHClean(UIH_STATE *state) {
 void UIHEventUpdate(UIH_STATE *state) {
     MSG msg;
     if (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE)) {
+        if (state->accelTable != NULL)
+            TranslateAcceleratorW(state->hwnd, state->accelTable, &msg);
         TranslateMessage(&msg);
         DispatchMessageW(&msg);
     }
-    MSG amsg;
-    if (state->accelTable != NULL) {
-        if (GetMessageW(&amsg, NULL, 0, 0)) {
-            if (!TranslateAcceleratorW(state->hwnd, state->accelTable, &amsg)) {
-                TranslateMessage(&amsg);
-                DispatchMessageW(&amsg);
-            }
-        }
-    }
 }
-
-
 
 #endif // _GUARD
