@@ -1,0 +1,1 @@
+windres -i resource.rc -o resource.o;gcc main.c -static -o3 resource.o -o "test.exe" -lgdi32 -lcomctl32 -lcomdlg32;./test.exe
