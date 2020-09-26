@@ -6,9 +6,12 @@
 #define _UNICODE
 #endif
 
+#undef __STRICT_ANSI__
+
 #include "string.h"
 #include "stdlib.h"
 #include "locale.h"
+#include "wchar.h"
 
 
 #include "stdio.h"
@@ -19,8 +22,7 @@
 #include "locale.h"
 #include "commdlg.h"
 
-#include "ui.h"
-#include "util.h"
+#include "../cprotogui/ui.h"
 #include "texteditor.h"
 
 
@@ -34,7 +36,7 @@ int main(int argc, char* args[]) {
     if (mainState != NULL) {
 
         UIHInit(mainState);
-        UIHCreateWindow(mainState, "Text Editor", 10, 10, 350, 200);
+        UIHCreateWindow(mainState, "heck世界你好こんにちは、世界feck", 10, 10, 350, 200);
 
         UIH_CONTROL *edit1 = UIHAddEdit(mainState, "", 0, 5, 5, 325, 80);
         edit1->fnResizeCallback = &editOnResizeCallback;
@@ -48,7 +50,7 @@ int main(int argc, char* args[]) {
 
         MakeTextEditorMenu(mainState);
         UIHShowWindow(mainState, 1);
-        UIHErr();
+        //UIHErr();
 
         mainState->isRunning = 1;
         while(mainState->isRunning) {

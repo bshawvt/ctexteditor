@@ -1,6 +1,16 @@
 #ifndef _TEXTEDITOR
 #define _TEXTEDITOR
 
+#ifndef UNICODE
+#define UNICODE
+#endif
+
+#ifndef _UNICODE
+#define _UNICODE
+#endif
+
+#undef __STRICT_ANSI__
+
 #include "string.h"
 #include "stdlib.h"
 #include "locale.h"
@@ -15,10 +25,7 @@
 #include "commdlg.h"
 #include "wchar.h"
 
-#include "ui.h"
-#include "util.h"
-
-
+#include "../cprotogui/ui.h"
 
 enum TEXTEDITOR_MENU {
     TEXTEDITOR_MENU_OPEN = UIH_MENU_UUID_RANGE,
@@ -29,7 +36,7 @@ enum TEXTEDITOR_MENU {
 
 void editCallback(UIH_STATE *state, UIH_CONTROL *control, void *data) {
     if (state->datums[0] != NULL && state->datums[1] == 0) {
-        state->datums[1] = 1;
+        state->datums[1] = (int*)1;
         printf("i am here\n");
 
         wchar_t *tmpTitle = malloc(sizeof(wchar_t) * UIH_MAX_FILENAME_SIZE);
@@ -45,13 +52,12 @@ void editCallback(UIH_STATE *state, UIH_CONTROL *control, void *data) {
         tmpTitle[titleSize + filenameSize + seperatorSize + asteriskSize] = '\0';
         SetWindowTextW(state->hwnd, tmpTitle);
         free(tmpTitle);
-
     }
 }
 
 void editOnResizeCallback(UIH_STATE *state, UIH_CONTROL *control, UIH_CONTROL_RECT *rect) {
     printf("editOnResizeCallback control = %p\n", control);
-    printf("%i\n", control->hwnd);
+    printf("%p\n", control->hwnd);
     control->rect.width = rect->width - 28;
     control->rect.height = rect->height - 70;
     SetWindowPos(control->hwnd, HWND_TOP, 0, 0, control->rect.width, control->rect.height, SWP_NOMOVE);
@@ -59,9 +65,9 @@ void editOnResizeCallback(UIH_STATE *state, UIH_CONTROL *control, UIH_CONTROL_RE
 
 void doFileSave(UIH_STATE *state, UIH_CONTROL *editControl) {
     if (editControl!=NULL) {
-        printf("saveas datums[0] = %s @ %p\n", state->datums[0], state->datums[0]);
+        printf("saveas datums[0] = %p @ %p\n", state->datums[0], state->datums[0]);
         if (state->datums[0]==NULL) {
-            printf("I SHOULD BE HERE REEEE\N");
+            printf("I SHOULD BE HERE REEEE\n");
             OPENFILENAMEW openfile = {0};
             wchar_t filename[UIH_MAX_FILENAME_SIZE] = {0};
 
@@ -128,8 +134,9 @@ void doFileOpen(UIH_STATE *state, UIH_CONTROL *editControl) {
             long size = ftell(file);
             fseek(file, 0, SEEK_SET);
             char *contentBuffer = malloc(sizeof(char) * (size + 1));
-            size_t r = fread(contentBuffer, sizeof(char), size, file);
-            contentBuffer[size] = '\0';
+            contentBuffer[0] = '\0';
+            fread(contentBuffer, sizeof(char), size, file);
+            contentBuffer[size-1] = '\0';
 
             if (editControl!=NULL) {
                 UIHSetString(editControl, contentBuffer);
@@ -182,7 +189,7 @@ void onMenuCallback(UIH_STATE *state, int menuId, void *data) {
             if (control != NULL) {
                 free(state->datums[0]);
                 state->datums[0] = NULL;
-                printf("menu callback state-datums[0] = %s @ %p\n", state->datums[0], state->datums[0]);
+                printf("menu callback state-datums[0] = %p @ %p\n", state->datums[0], state->datums[0]);
                 //memcpy(state->datums[0], NULL, 1);
 
                 doFileSave(state, control);
@@ -208,7 +215,7 @@ void MakeTextEditorMenu(UIH_STATE *state) {
     HMENU child = CreateMenu();
     HMENU parent = CreateMenu();
 
-    AppendMenuW(parent, MF_POPUP, child, L"File");
+    AppendMenuW(parent, MF_POPUP, (UINT_PTR) child, L"File");
     AppendMenuW(child, MF_STRING, TEXTEDITOR_MENU_OPEN, L"&Open\tCtrl+O");
     AppendMenuW(child, MF_STRING, TEXTEDITOR_MENU_SAVE, L"&Save\tCtrl+S");
     AppendMenuW(child, MF_STRING, TEXTEDITOR_MENU_SAVEAS, L"Save As\tCtrl+Shift+S");
@@ -235,7 +242,7 @@ void MakeTextEditorMenu(UIH_STATE *state) {
     accels[3].key = 'Q';
 
     state->accelTable = CreateAcceleratorTableW(accels, 4);
-    UIHErr();
+    //UIHErr();
 
 }
 
