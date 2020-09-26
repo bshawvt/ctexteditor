@@ -36,7 +36,7 @@ int main(int argc, char* args[]) {
     if (mainState != NULL) {
 
         UIHInit(mainState);
-        UIHCreateWindow(mainState, "heck世界你好こんにちは、世界feck", 10, 10, 350, 200);
+        UIHCreateWindow(mainState, "Text Editor", 10, 10, 350, 200);
 
         UIH_CONTROL *edit1 = UIHAddEdit(mainState, "", 0, 5, 5, 325, 80);
         edit1->fnResizeCallback = &editOnResizeCallback;
